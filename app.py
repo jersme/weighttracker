@@ -25,14 +25,19 @@ def save_data(engine, entry_date, weight, calories_burned, calories_consumed, no
         INSERT INTO weight_data (entry_date, weight, calories_burned, calories_consumed, notes)
         VALUES (:entry_date, :weight, :calories_burned, :calories_consumed, :notes)
     """)
-    with engine.connect() as conn:
-        conn.execute(query, {
-            'entry_date': entry_date,
-            'weight': weight,
-            'calories_burned': calories_burned,
-            'calories_consumed': calories_consumed,
-            'notes': notes
-        })
+    try:
+        with engine.connect() as conn:
+            conn.execute(query, {
+                'entry_date': entry_date,
+                'weight': weight,
+                'calories_burned': calories_burned,
+                'calories_consumed': calories_consumed,
+                'notes': notes
+            })
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
+        return False
+    return True
 
 # Main app configuration
 engine = create_engine_with_ssl()
