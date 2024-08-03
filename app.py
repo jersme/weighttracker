@@ -34,6 +34,7 @@ def save_data(engine, entry_date, weight, calories_burned, calories_consumed, no
                 'calories_consumed': calories_consumed,
                 'notes': notes
             })
+        st.success("Data saved successfully!")
     except Exception as e:
         st.error(f"An error occurred: {e}")
         return False
@@ -43,20 +44,29 @@ def save_data(engine, entry_date, weight, calories_burned, calories_consumed, no
 engine = create_engine_with_ssl()
 st.title("Weight Tracker")
 
-# Sidebar for navigation
-st.sidebar.title("Navigation")
-page = st.sidebar.radio("Select a page", ["Main Dashboard", "Data Entry"])
+tab1, tab2 = st.tabs(["Main Dashboard", "Data Entry"])
 
-if page == "Main Dashboard":
+with tab1:
     st.header("Weight Data Overview")
     data = load_data(engine)
     if not data.empty:
+        current_weight = data['weight'].iloc[-1]
+        target_weight = 65  # Example target weight
+        kg_lost = data['weight'].iloc[0] - current_weight
+        kg_to_go = target_weight - current_weight
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Kg's to go", f"{kg_to_go} kg")
+        col2.metric("Kg's lost", f"{kg_lost} kg")
+        col3.metric("Current weight", f"{current_weight} kg")
+
         st.write(data)
     else:
         st.write("No data available yet.")
-elif page == "Data Entry":
+
+with tab2:
     st.header("New Weight Entry")
-    with st.form("entry_form", clear_on_submit=True):
+    with st.form("entry_form"):
         weight = st.number_input("Enter your weight (kg)", min_value=0.0, step=0.1)
         entry_date = st.date_input("Select the date", value=date.today())
         calories_burned = st.number_input("Enter calories burned", min_value=0, step=1)
@@ -65,5 +75,5 @@ elif page == "Data Entry":
         submitted = st.form_submit_button("Submit")
 
         if submitted:
-            save_data(engine, entry_date, weight, calories_burned, calories_consumed, notes)
-            st.success("Data saved successfully!")
+            if save_data(engine, entry_date, weight, calories_burned, calories_consumed, notes):
+                st.balloons()  # Celebrate successful entry
