@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from datetime import date
 
 # Database connection setup
-DB_URL = f'postgresql://{st.secrets["DB_USER"]}:{st.secrets["DB_PASSWORD"]}@{st.secrets["DB_HOST"]}:{st.secrets["DB_PORT"]}/{st.secrets["DB_NAME"]}'?sslmode={st.secrets["SSLMODE"]}
+DB_URL = f'postgresql://{st.secrets["DB_USER"]}:{st.secrets["DB_PASSWORD"]}@{st.secrets["DB_HOST"]}:{st.secrets["DB_PORT"]}/{st.secrets["DB_NAME"]}?sslmode={st.secrets["SSLMODE"]}'
 
 engine = create_engine(DB_URL)
 
