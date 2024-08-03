@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.express as px
 from sqlalchemy import create_engine, text
 from datetime import date
 
@@ -64,17 +64,14 @@ with tab1:
         col2.metric("Kg's lost", f"{kg_lost:.2f} kg")
         col3.metric("Current weight", f"{current_weight:.2f} kg")
 
-        st.write(data)
-
-        # Plotting the weight chart
-        fig, ax = plt.subplots()
-        ax.plot(data['entry_date'], data['weight'], label='Weight', marker='o')
-        ax.axhline(y=goal_weight, color='r', linestyle='--', label=f'Goal Weight ({goal_weight} kg)')
-        ax.set_xlabel("Date")
-        ax.set_ylabel("Weight (kg)")
-        ax.set_title("Weight Tracking Over Time")
-        ax.legend()
-        st.pyplot(fig)
+        # Plotly chart
+        fig = px.line(data, x='entry_date', y='weight', title='Weight Tracking Over Time',
+                      markers=True, labels={'weight': 'Weight (kg)', 'entry_date': 'Date'})
+        fig.add_hline(y=goal_weight, line_dash="dot",
+                      annotation_text="Goal Weight", 
+                      annotation_position="bottom right")
+        
+        st.plotly_chart(fig, use_container_width=True)
     else:
         st.write("No data available yet.")
 
