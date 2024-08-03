@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from sqlalchemy import create_engine, text
-from datetime import date
+from datetime import datetime
 
 # Function to create database engine
 def create_engine_with_ssl():
@@ -17,8 +17,11 @@ def create_engine_with_ssl():
 
 # Function to load existing data from the database
 def load_data(engine):
-    query = "SELECT * FROM weight_data ORDER BY entry_date"
-    return pd.read_sql(query, engine)
+    query = "SELECT entry_date, weight FROM weight_data ORDER BY entry_date"
+    df = pd.read_sql(query, engine)
+    # Ensure 'entry_date' is a datetime type if not already
+    df['entry_date'] = pd.to_datetime(df['entry_date'])
+    return df
 
 # Function to save new data to the database
 def save_data(engine, entry_date, weight, calories_burned, calories_consumed, notes):
@@ -64,9 +67,11 @@ with tab1:
         col2.metric("Kg's lost", f"{kg_lost:.2f} kg")
         col3.metric("Current weight", f"{current_weight:.2f} kg")
 
-        # Plotly chart
+        # Plotly chart with time grouping
         fig = px.line(data, x='entry_date', y='weight', title='Weight Tracking Over Time',
-                      markers=True, labels={'weight': 'Weight (kg)', 'entry_date': 'Date'})
+                      markers=True, labels={'weight': 'Weight (kg)', 'entry_date': 'Date & Time'})
+        fig.update_layout(xaxis_title="Date and Time", yaxis_title="Weight (kg)",
+                          yaxis_range=[0,90])  # Setting the Y-axis limits
         fig.add_hline(y=goal_weight, line_dash="dot",
                       annotation_text="Goal Weight", 
                       annotation_position="bottom right")
@@ -79,7 +84,7 @@ with tab2:
     st.header("New Weight Entry")
     with st.form("entry_form"):
         weight = st.number_input("Enter your weight (kg)", min_value=0.0, step=0.1)
-        entry_date = st.date_input("Select the date", value=date.today())
+        entry_date = st.date_input("Select the date", value=datetime.now())
         calories_burned = st.number_input("Enter calories burned", min_value=0, step=1)
         calories_consumed = st.number_input("Enter calories consumed", min_value=0, step=1)
         notes = st.text_area("Additional notes")
