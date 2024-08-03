@@ -8,15 +8,42 @@ from pygam import LinearGAM, s
 
 # Function to create database engine
 def create_engine_with_ssl():
-    # Same database engine creation code as before
+    DB_USER = st.secrets["DB_USER"]
+    DB_PASSWORD = st.secrets["DB_PASSWORD"]
+    DB_HOST = st.secrets["DB_HOST"]
+    DB_PORT = st.secrets["DB_PORT"]
+    DB_NAME = st.secrets["DB_NAME"]
+    SSLMODE = st.secrets["SSLMODE"]
+    DB_URL = f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode={SSLMODE}'
+    return create_engine(DB_URL)
 
 # Function to load existing data from the database
 def load_data(engine):
-    # Same data loading code as before
+    query = "SELECT entry_date, weight FROM weight_data ORDER BY entry_date"
+    df = pd.read_sql(query, engine)
+    df['entry_date'] = pd.to_datetime(df['entry_date'])  # Ensure 'entry_date' is a datetime type
+    return df
 
 # Function to save new data to the database
 def save_data(engine, entry_date, weight, calories_burned, calories_consumed, notes):
-    # Same data saving code as before
+    query = text("""
+        INSERT INTO weight_data (entry_date, weight, calories_burned, calories_consumed, notes)
+        VALUES (:entry_date, :weight, :calories_burned, :calories_consumed, :notes)
+    """)
+    try:
+        with engine.connect() as conn:
+            conn.execute(query, {
+                'entry_date': entry_date,
+                'weight': weight,
+                'calories_burned': calories_burned,
+                'calories_consumed': calories_consumed,
+                'notes': notes
+            })
+        st.success("Data saved successfully!")
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
+        return False
+    return True
 
 # Function to predict the goal weight achievement date using a GAM model
 def predict_goal_date(data, goal_weight):
@@ -53,12 +80,20 @@ with tab1:
     st.header("Weight Data Overview")
     data = load_data(engine)
     if not data.empty:
-        # Existing plotting code
+        data['kg_to_go'] = data['weight'] - goal_weight  # Calculate kg's to go as the difference from the goal
+
+        # Plot for weight over time
+        fig_weight = px.line(data, x='entry_date', y='weight', title='Weight Tracking Over Time',
+                             markers=True, labels={'weight': 'Weight (kg)', 'entry_date': 'Date'})
+        fig_weight.add_hline(y=goal_weight, line_dash="dot",
+                             annotation_text="Goal Weight", 
+                             annotation_position="bottom right")
+        st.plotly_chart(fig_weight, use_container_width=True)
 
         # Prediction section
-        st.header("Predictions")
         predicted_date, days_to_go = predict_goal_date(data, goal_weight)
         if predicted_date:
+            st.header("Predictions")
             col1, col2 = st.columns(2)
             col1.metric("Predicted Date to Reach Goal", predicted_date)
             col2.metric("Days to Go", days_to_go)
@@ -71,9 +106,8 @@ with tab1:
         else:
             st.write("Not enough data to predict or goal is beyond 1 year.")
 
-with tab2:
-    # Data entry code as before
-
+    else:
+        st.write("No data available yet.")
 
 with tab2:
     st.header("New Weight Entry")
