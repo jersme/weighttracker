@@ -72,6 +72,10 @@ with tab1:
             st.write("Not enough data to predict or goal is beyond 1 year.")
 
 with tab2:
+    # Data entry code as before
+
+
+with tab2:
     st.header("New Weight Entry")
     with st.form("entry_form"):
         weight = st.number_input("Enter your weight (kg)", min_value=0.0, step=0.1)
