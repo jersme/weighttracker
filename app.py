@@ -44,10 +44,9 @@ def save_data(engine, entry_date, weight, calories_burned, calories_consumed, no
 engine = create_engine_with_ssl()
 st.title("Weight Tracker")
 
-# Sidebar for navigation and goal weight input
-st.sidebar.title("Navigation")
-page = st.sidebar.radio("Select a page", ["Main Dashboard", "Data Entry"])
-goal_weight = st.sidebar.number_input("Goal Weight (kg)", value=78)
+# Sidebar for goal weight input
+st.sidebar.title("Settings")
+goal_weight = st.sidebar.number_input("Goal Weight (kg)", value=78, min_value=0)
 
 tab1, tab2 = st.tabs(["Main Dashboard", "Data Entry"])
 
