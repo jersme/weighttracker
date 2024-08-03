@@ -19,8 +19,7 @@ def create_engine_with_ssl():
 def load_data(engine):
     query = "SELECT entry_date, weight FROM weight_data ORDER BY entry_date"
     df = pd.read_sql(query, engine)
-    # Ensure 'entry_date' is a datetime type if not already
-    df['entry_date'] = pd.to_datetime(df['entry_date'])
+    df['entry_date'] = pd.to_datetime(df['entry_date'])  # Ensure 'entry_date' is a datetime type
     return df
 
 # Function to save new data to the database
@@ -58,25 +57,21 @@ with tab1:
     st.header("Weight Data Overview")
     data = load_data(engine)
     if not data.empty:
-        current_weight = data['weight'].iloc[-1]
-        kg_lost = data['weight'].iloc[0] - current_weight
-        kg_to_go = goal_weight - current_weight
+        data['kg_to_go'] = goal_weight - data['weight']  # Calculate kg's to go for each entry
 
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Kg's to go", f"{kg_to_go:.2f} kg")
-        col2.metric("Kg's lost", f"{kg_lost:.2f} kg")
-        col3.metric("Current weight", f"{current_weight:.2f} kg")
+        # Plot for weight over time
+        fig_weight = px.line(data, x='entry_date', y='weight', title='Weight Tracking Over Time',
+                             markers=True, labels={'weight': 'Weight (kg)', 'entry_date': 'Date'})
+        fig_weight.add_hline(y=goal_weight, line_dash="dot",
+                             annotation_text="Goal Weight", 
+                             annotation_position="bottom right")
+        st.plotly_chart(fig_weight, use_container_width=True)
 
-        # Plotly chart with time grouping
-        fig = px.line(data, x='entry_date', y='weight', title='Weight Tracking Over Time',
-                      markers=True, labels={'weight': 'Weight (kg)', 'entry_date': 'Date & Time'})
-        fig.update_layout(xaxis_title="Date and Time", yaxis_title="Weight (kg)",
-                          yaxis_range=[0,90])  # Setting the Y-axis limits
-        fig.add_hline(y=goal_weight, line_dash="dot",
-                      annotation_text="Goal Weight", 
-                      annotation_position="bottom right")
-        
-        st.plotly_chart(fig, use_container_width=True)
+        # Plot for kg's to go over time
+        fig_kgs_to_go = px.line(data, x='entry_date', y='kg_to_go', title="Kg's to Go Over Time",
+                                markers=True, labels={'kg_to_go': "Kg's to Go", 'entry_date': 'Date'})
+        st.plotly_chart(fig_kgs_to_go, use_container_width=True)
+
     else:
         st.write("No data available yet.")
 
