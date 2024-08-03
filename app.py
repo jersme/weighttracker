@@ -44,6 +44,11 @@ def save_data(engine, entry_date, weight, calories_burned, calories_consumed, no
 engine = create_engine_with_ssl()
 st.title("Weight Tracker")
 
+# Sidebar for navigation and goal weight input
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Select a page", ["Main Dashboard", "Data Entry"])
+goal_weight = st.sidebar.number_input("Goal Weight (kg)", value=78)
+
 tab1, tab2 = st.tabs(["Main Dashboard", "Data Entry"])
 
 with tab1:
@@ -51,14 +56,13 @@ with tab1:
     data = load_data(engine)
     if not data.empty:
         current_weight = data['weight'].iloc[-1]
-        target_weight = 65  # Example target weight
         kg_lost = data['weight'].iloc[0] - current_weight
-        kg_to_go = target_weight - current_weight
+        kg_to_go = goal_weight - current_weight
 
         col1, col2, col3 = st.columns(3)
-        col1.metric("Kg's to go", f"{kg_to_go} kg")
-        col2.metric("Kg's lost", f"{kg_lost} kg")
-        col3.metric("Current weight", f"{current_weight} kg")
+        col1.metric("Kg's to go", f"{kg_to_go:.2f} kg")
+        col2.metric("Kg's lost", f"{kg_lost:.2f} kg")
+        col3.metric("Current weight", f"{current_weight:.2f} kg")
 
         st.write(data)
     else:
