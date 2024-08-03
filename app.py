@@ -67,10 +67,10 @@ with tab1:
                              annotation_position="bottom right")
         st.plotly_chart(fig_weight, use_container_width=True)
 
-        # Plot for kg's to go over time, zero-centered at the goal weight
+        # Plot for kg's to go over time, zero-centered at the goal weight, starting Y-axis at 0
         fig_kgs_to_go = px.line(data, x='entry_date', y='kg_to_go', title="Kg's to Go Over Time",
                                 markers=True, labels={'kg_to_go': "Kg's to Go", 'entry_date': 'Date'})
-        fig_kgs_to_go.update_layout(yaxis_title="Kg's Above/Below Goal")
+        fig_kgs_to_go.update_layout(yaxis_title="Kg's Above/Below Goal", yaxis_range=[0, max(data['kg_to_go'].max(), 10)])
         st.plotly_chart(fig_kgs_to_go, use_container_width=True)
 
     else:
