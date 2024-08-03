@@ -1,21 +1,29 @@
 import streamlit as st
 import pandas as pd
+from sqlalchemy import create_engine
 from datetime import date
 
-# Function to load existing data or create a new DataFrame if the file does not exist
-def load_data(file_path):
-    try:
-        return pd.read_csv(file_path)
-    except FileNotFoundError:
-        return pd.DataFrame(columns=["Date", "Weight", "Calories Burned", "Calories Consumed", "Notes"])
+# Database connection setup
+DB_URL = f'postgresql://{st.secrets["DB_USER"]}:{st.secrets["DB_PASSWORD"]}@{st.secrets["DB_HOST"]}:{st.secrets["DB_PORT"]}/{st.secrets["DB_NAME"]}'?sslmode={st.secrets["SSLMODE"]}
 
-# Function to save data to a CSV file
-def save_data(file_path, data):
-    data.to_csv(file_path, index=False)
+engine = create_engine(DB_URL)
+
+# Function to load existing data from the database
+def load_data():
+    query = "SELECT * FROM weight_data"
+    return pd.read_sql(query, engine)
+
+# Function to save new data to the database
+def save_data(entry_date, weight, calories_burned, calories_consumed, notes):
+    query = f"""
+    INSERT INTO weight_data (entry_date, weight, calories_burned, calories_consumed, notes)
+    VALUES ('{entry_date}', {weight}, {calories_burned}, {calories_consumed}, '{notes}')
+    """
+    with engine.connect() as conn:
+        conn.execute(query)
 
 # Load existing data
-data_file = "weight_data.csv"
-data = load_data(data_file)
+data = load_data()
 
 # Title of the app
 st.title("Weight Tracker")
@@ -30,9 +38,9 @@ if page == "Main":
 
     # KPI boxes
     if not data.empty:
-        current_weight = data["Weight"].iloc[-1]
+        current_weight = data["weight"].iloc[-1]
         target_weight = 65  # This can be set dynamically or from user input
-        weight_lost = data["Weight"].iloc[0] - current_weight
+        weight_lost = data["weight"].iloc[0] - current_weight
 
         kpi1, kpi2, kpi3 = st.columns(3)
 
@@ -69,18 +77,11 @@ elif page == "Data Entry":
         submitted = st.form_submit_button("Submit")
 
         if submitted:
-            # Add new entry to data
-            new_entry = {
-                "Date": entry_date,
-                "Weight": weight,
-                "Calories Burned": calories_burned,
-                "Calories Consumed": calories_consumed,
-                "Notes": notes
-            }
-            data = data.append(new_entry, ignore_index=True)
+            # Save data to PostgreSQL database
+            save_data(entry_date, weight, calories_burned, calories_consumed, notes)
 
-            # Save updated data
-            save_data(data_file, data)
+            # Reload data
+            data = load_data()
 
             st.success("Data saved successfully!")
             st.write("Weight:", weight, "kg")
