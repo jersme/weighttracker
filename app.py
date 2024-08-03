@@ -57,7 +57,7 @@ with tab1:
     st.header("Weight Data Overview")
     data = load_data(engine)
     if not data.empty:
-        data['kg_to_go'] = goal_weight - data['weight']  # Calculate kg's to go for each entry
+        data['kg_to_go'] = data['weight'] - goal_weight  # Calculate kg's to go as the difference from the goal
 
         # Plot for weight over time
         fig_weight = px.line(data, x='entry_date', y='weight', title='Weight Tracking Over Time',
@@ -67,9 +67,10 @@ with tab1:
                              annotation_position="bottom right")
         st.plotly_chart(fig_weight, use_container_width=True)
 
-        # Plot for kg's to go over time
+        # Plot for kg's to go over time, zero-centered at the goal weight
         fig_kgs_to_go = px.line(data, x='entry_date', y='kg_to_go', title="Kg's to Go Over Time",
                                 markers=True, labels={'kg_to_go': "Kg's to Go", 'entry_date': 'Date'})
+        fig_kgs_to_go.update_layout(yaxis_title="Kg's Above/Below Goal")
         st.plotly_chart(fig_kgs_to_go, use_container_width=True)
 
     else:
