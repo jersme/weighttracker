@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 from sqlalchemy import create_engine, text
 from datetime import date
 
@@ -16,7 +17,7 @@ def create_engine_with_ssl():
 
 # Function to load existing data from the database
 def load_data(engine):
-    query = "SELECT * FROM weight_data"
+    query = "SELECT * FROM weight_data ORDER BY entry_date"
     return pd.read_sql(query, engine)
 
 # Function to save new data to the database
@@ -64,6 +65,16 @@ with tab1:
         col3.metric("Current weight", f"{current_weight:.2f} kg")
 
         st.write(data)
+
+        # Plotting the weight chart
+        fig, ax = plt.subplots()
+        ax.plot(data['entry_date'], data['weight'], label='Weight', marker='o')
+        ax.axhline(y=goal_weight, color='r', linestyle='--', label=f'Goal Weight ({goal_weight} kg)')
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Weight (kg)")
+        ax.set_title("Weight Tracking Over Time")
+        ax.legend()
+        st.pyplot(fig)
     else:
         st.write("No data available yet.")
 

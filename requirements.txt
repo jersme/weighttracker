@@ -2,3 +2,4 @@ streamlit
 pandas
 sqlalchemy
 psycopg2-binary  # or psycopg2, but psycopg2-binary is often easier to install
+matplotlib
