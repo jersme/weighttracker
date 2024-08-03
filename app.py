@@ -5,12 +5,12 @@ from datetime import date
 
 # Function to create database engine
 def create_engine_with_ssl():
-    DB_USER = st.secrets["DB"] ["DB_USER"]
-    DB_PASSWORD = st.secrets["DB"]["DB_PASSWORD"]
-    DB_HOST = st.secrets["DB"]["DB_HOST"]
-    DB_PORT = st.secrets["DB"]["DB_PORT"]
-    DB_NAME = st.secrets["DB"]["DB_NAME"]
-    SSLMODE = st.secrets["DB"]["SSLMODE"]
+    DB_USER = st.secrets["DB_USER"]
+    DB_PASSWORD = st.secrets["DB_PASSWORD"]
+    DB_HOST = st.secrets["DB_HOST"]
+    DB_PORT = st.secrets["DB_PORT"]
+    DB_NAME = st.secrets["DB_NAME"]
+    SSLMODE = st.secrets["SSLMODE"]
     DB_URL = f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode={SSLMODE}'
     return create_engine(DB_URL)
 
