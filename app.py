@@ -19,15 +19,22 @@ def connect_to_db():
         return None
 
 def get_weightracker_data():
-    """Fetch data from the weightracker table."""
+    """Fetch data from the weightracker table and transform it."""
     conn = connect_to_db()
     if conn is not None:
         try:
             query = "SELECT * FROM weightracker;"
             df = pd.read_sql(query, conn)
+            
+            # Transform the 'date' column to a datetime format
+            df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
+
+            # Calculate the daily calorie delta
+            df['calorie_delta'] = df['calories_consumed'] - df['calories_burned']
+
             return df
         except Exception as e:
-            st.error(f"Error fetching data: {e}")
+            st.error(f"Error fetching or transforming data: {e}")
             return pd.DataFrame()  # Return empty DataFrame in case of error
         finally:
             conn.close()
