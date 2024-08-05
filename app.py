@@ -6,11 +6,11 @@ def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
     try:
         conn = psycopg2.connect(
-            host=st.secrets["database"]["DB_HOST"],
-            port=st.secrets["database"]["DB_PORT"],
-            dbname=st.secrets["database"]["DB_NAME"],
-            user=st.secrets["database"]["DB_USER"],
-            password=st.secrets["database"]["DB_PASS"],
+            host=st.secrets["DB_HOST"],
+            port=st.secrets["DB_PORT"],
+            dbname=st.secrets["DB_NAME"],
+            user=st.secrets["DB_USER"],
+            password=st.secrets["DB_PASS"],
             sslmode='require'  # Ensure SSL is used for the connection
         )
         return conn
