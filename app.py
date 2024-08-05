@@ -1,24 +1,16 @@
 import streamlit as st
 import psycopg2
 import pandas as pd
-import os
-
-# Database connection parameters from environment variables
-DB_HOST = os.getenv('DB_HOST')
-DB_PORT = os.getenv('DB_PORT')
-DB_NAME = os.getenv('DB_NAME')
-DB_USER = os.getenv('DB_USER')
-DB_PASS = os.getenv('DB_PASS')
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
     try:
         conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASS,
+            host=st.secrets["database"]["DB_HOST"],
+            port=st.secrets["database"]["DB_PORT"],
+            dbname=st.secrets["database"]["DB_NAME"],
+            user=st.secrets["database"]["DB_USER"],
+            password=st.secrets["database"]["DB_PASS"],
             sslmode='require'  # Ensure SSL is used for the connection
         )
         return conn
