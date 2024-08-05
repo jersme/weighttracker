@@ -43,10 +43,17 @@ def main():
     """Main function to run the Streamlit app."""
     st.title("Weight Tracker")
 
+    # Sidebar for additional inputs and information
+    st.sidebar.header("Settings")
+    goal_weight = st.sidebar.number_input("Goal Weight (kg)", min_value=0.0, value=70.0, step=0.1)
+    
+    df = get_weightracker_data()
+
+    # Display the goal weight at the top of the main content
+    st.write(f"**Goal Weight:** {goal_weight} kg")
+
     # Create two tabs for different sections of the app
     tab1, tab2 = st.tabs(["Analysis", "Data"])
-
-    df = get_weightracker_data()
 
     with tab1:
         st.header("Analysis")
