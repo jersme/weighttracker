@@ -35,12 +35,18 @@ def insert_data_from_csv(csv_file_path):
     
     for _, row in df.iterrows():
         try:
-            # Insert each row into the table
+            # Insert each row into the table and update on conflict
             cursor.execute(
                 """
                 INSERT INTO weightracker (
                     date, calories_burned, calories_consumed, weight, sports, notes
                 ) VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (date) DO UPDATE SET
+                    calories_burned = EXCLUDED.calories_burned,
+                    calories_consumed = EXCLUDED.calories_consumed,
+                    weight = EXCLUDED.weight,
+                    sports = EXCLUDED.sports,
+                    notes = EXCLUDED.notes
                 """,
                 (row['date'], row['calories_burned'], row['calories_consumed'], row['Weight'], row['Sports'], row['Notes'])
             )
@@ -55,4 +61,3 @@ if __name__ == "__main__":
     # Path to the CSV file in the root directory of the repository
     csv_file_path = 'weightracker.csv'
     insert_data_from_csv(csv_file_path)
-
