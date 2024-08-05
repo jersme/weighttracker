@@ -41,14 +41,29 @@ def get_weightracker_data():
 
 def main():
     """Main function to run the Streamlit app."""
-    st.title("Weightracker Data")
+    st.title("Weight Tracker")
+
+    # Create two tabs for different sections of the app
+    tab1, tab2 = st.tabs(["Analysis", "Data"])
 
     df = get_weightracker_data()
 
-    if not df.empty:
-        st.dataframe(df)
-    else:
-        st.write("No data available.")
+    with tab1:
+        st.header("Analysis")
+        if not df.empty:
+            # Placeholder for analysis content
+            st.subheader("Summary Statistics")
+            st.write(df.describe())
+            # Add more analysis or visualizations as needed here
+        else:
+            st.write("No data available for analysis.")
+
+    with tab2:
+        st.header("Data")
+        if not df.empty:
+            st.dataframe(df)
+        else:
+            st.write("No data available.")
 
 if __name__ == "__main__":
     main()
