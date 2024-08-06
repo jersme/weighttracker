@@ -19,7 +19,7 @@ def connect_to_db():
         st.error(f"Error connecting to database: {e}")
         return None
 
-def get_weightracker_data(height_m):
+def get_weightracker_data(height_m, target_weight):
     """Fetch data from the weightracker table and transform it."""
     conn = connect_to_db()
     if conn is not None:
@@ -36,6 +36,12 @@ def get_weightracker_data(height_m):
             # Calculate BMI using the user's height
             df['BMI'] = df['weight'] / (height_m ** 2)
 
+            # Calculate KGs to go to target weight
+            df["kgs_to_target"] = df["weight"] - target_weight
+
+            # Calculate calories to save to reach target weight
+            df["calories_to_save"] = df["kgs_to_target"] * 7000
+
             return df
         except Exception as e:
             st.error(f"Error fetching or transforming data: {e}")
@@ -51,7 +57,7 @@ def main():
 
     # Sidebar for additional inputs and information
     st.sidebar.header("Settings")
-    goal_weight = st.sidebar.number_input("Goal Weight (kg)", min_value=0.0, value=75.0, step=0.1)
+    target_weight = st.sidebar.number_input("Goal Weight (kg)", min_value=0.0, value=75.0, step=0.1)
     height_m = st.sidebar.number_input("Height (m)", min_value=1.0, value=1.83, step=0.01)  # Allow decimal values for height
 
     # Button to refresh data
@@ -63,7 +69,7 @@ def main():
         st.session_state.refresh = True
 
     if st.session_state.refresh:
-        df = get_weightracker_data(height_m)
+        df = get_weightracker_data(height_m, target_weight)
         st.session_state.df = df
         st.session_state.refresh = False
     else:
