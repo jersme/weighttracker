@@ -51,8 +51,8 @@ def main():
 
     # Sidebar for additional inputs and information
     st.sidebar.header("Settings")
-    goal_weight = st.sidebar.number_input("Goal Weight (kg)", min_value=0.0, value=75.0, step=0.1)
-    height_cm = st.sidebar.number_input("Height (cm)", min_value=0.0, value=170.0, step=0.1)
+    goal_weight = st.sidebar.number_input("Goal Weight (kg)", min_value=0, value=75, step=1)
+    height_cm = st.sidebar.number_input("Height (cm)", min_value=100, value=183, step=1)
     height_m = height_cm / 100  # Convert height to meters for BMI calculation
 
     # Button to refresh data
@@ -93,6 +93,9 @@ def main():
     with tab2:
         st.header("Data")
         if not df.empty:
+            # Include BMI in the data table
+            df['BMI'] = df['Weight'] / (height_m ** 2)
+
             # Use AG Grid for displaying the main data
             gb = GridOptionsBuilder.from_dataframe(df)
             gb.configure_pagination(paginationAutoPageSize=True)
