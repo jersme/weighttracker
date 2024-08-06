@@ -30,6 +30,9 @@ def get_weightracker_data(height_m, target_weight):
             # Transform the 'date' column to a datetime format
             df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
 
+            # Sort the dataframe by date to correctly calculate cumulative values
+            df = df.sort_values(by='date')
+
             # Calculate the daily calorie delta
             df['calorie_delta'] = df['calories_consumed'] - df['calories_burned']
 
@@ -41,6 +44,9 @@ def get_weightracker_data(height_m, target_weight):
 
             # Calculate calories to save to reach target weight
             df["calories_to_save"] = df["kgs_to_target"] * 7000
+
+            # Calculate cumulative calories saved
+            df['cumulative_calories_saved'] = df['calorie_delta'].cumsum()
 
             return df
         except Exception as e:
