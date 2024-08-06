@@ -1,6 +1,7 @@
 import streamlit as st
 import psycopg2
 import pandas as pd
+from st_aggrid import AgGrid, GridOptionsBuilder
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -55,9 +56,15 @@ def main():
     with tab1:
         st.header("Analysis")
         if not df.empty:
-            # Placeholder for analysis content
             st.subheader("Summary Statistics")
-            st.write(df.describe())
+            # Use AG Grid for displaying summary statistics
+            summary_df = df.describe().reset_index()  # Reset index for better display
+            gb = GridOptionsBuilder.from_dataframe(summary_df)
+            gb.configure_pagination(paginationAutoPageSize=True)  # Pagination
+            gb.configure_side_bar()  # Enable side bar for filtering and more
+            grid_options = gb.build()
+
+            AgGrid(summary_df, gridOptions=grid_options)
             # Add more analysis or visualizations as needed here
         else:
             st.write("No data available for analysis.")
@@ -65,7 +72,13 @@ def main():
     with tab2:
         st.header("Data")
         if not df.empty:
-            st.dataframe(df)
+            # Use AG Grid for displaying the main data
+            gb = GridOptionsBuilder.from_dataframe(df)
+            gb.configure_pagination(paginationAutoPageSize=True)
+            gb.configure_side_bar()
+            grid_options = gb.build()
+
+            AgGrid(df, gridOptions=grid_options)
         else:
             st.write("No data available.")
 
