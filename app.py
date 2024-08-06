@@ -49,8 +49,21 @@ def main():
     # Sidebar for additional inputs and information
     st.sidebar.header("Settings")
     goal_weight = st.sidebar.number_input("Goal Weight (kg)", min_value=0.0, value=75.0, step=0.1)
-    
-    df = get_weightracker_data()
+
+    # Button to refresh data
+    if st.sidebar.button("Refresh Data"):
+        st.session_state.refresh = True
+
+    # Initialize session state for refreshing
+    if 'refresh' not in st.session_state:
+        st.session_state.refresh = True
+
+    if st.session_state.refresh:
+        df = get_weightracker_data()
+        st.session_state.df = df
+        st.session_state.refresh = False
+    else:
+        df = st.session_state.df
 
     # Create two tabs for different sections of the app
     tab1, tab2 = st.tabs(["Analysis", "Data"])
