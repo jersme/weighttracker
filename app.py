@@ -34,7 +34,7 @@ def get_weightracker_data(height_m):
             df['calorie_delta'] = df['calories_consumed'] - df['calories_burned']
 
             # Calculate BMI using the user's height
-            df['BMI'] = df['Weight'] / (height_m ** 2)
+            df['BMI'] = df['weight'] / (height_m ** 2)
 
             return df
         except Exception as e:
@@ -92,6 +92,7 @@ def main():
     with tab2:
         st.header("Data")
         if not df.empty:
+            # Use AG Grid for displaying the main data
             gb = GridOptionsBuilder.from_dataframe(df)
             gb.configure_pagination(paginationAutoPageSize=True)
             gb.configure_side_bar()
