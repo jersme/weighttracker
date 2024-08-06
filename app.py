@@ -19,7 +19,7 @@ def connect_to_db():
         st.error(f"Error connecting to database: {e}")
         return None
 
-def get_weightracker_data():
+def get_weightracker_data(height_m):
     """Fetch data from the weightracker table and transform it."""
     conn = connect_to_db()
     if conn is not None:
@@ -32,6 +32,9 @@ def get_weightracker_data():
 
             # Calculate the daily calorie delta
             df['calorie_delta'] = df['calories_consumed'] - df['calories_burned']
+
+            # Calculate BMI using the user's height
+            df['BMI'] = df['Weight'] / (height_m ** 2)
 
             return df
         except Exception as e:
@@ -49,6 +52,8 @@ def main():
     # Sidebar for additional inputs and information
     st.sidebar.header("Settings")
     goal_weight = st.sidebar.number_input("Goal Weight (kg)", min_value=0.0, value=75.0, step=0.1)
+    height_cm = st.sidebar.number_input("Height (cm)", min_value=0.0, value=170.0, step=0.1)
+    height_m = height_cm / 100  # Convert height to meters for BMI calculation
 
     # Button to refresh data
     if st.sidebar.button("Refresh Data"):
@@ -59,7 +64,7 @@ def main():
         st.session_state.refresh = True
 
     if st.session_state.refresh:
-        df = get_weightracker_data()
+        df = get_weightracker_data(height_m)
         st.session_state.df = df
         st.session_state.refresh = False
     else:
