@@ -42,6 +42,8 @@ def get_weightracker_data():
 
 def main():
     """Main function to run the Streamlit app."""
+    # Use Streamlit's wide mode to use more horizontal space
+    st.set_page_config(layout="wide")
     st.title("Weight Tracker")
 
     # Sidebar for additional inputs and information
@@ -62,10 +64,10 @@ def main():
             gb = GridOptionsBuilder.from_dataframe(summary_df)
             gb.configure_pagination(paginationAutoPageSize=True)  # Pagination
             gb.configure_side_bar()  # Enable side bar for filtering and more
-            gb.configure_default_column(wrapText=True, autoHeight=True)  # Configure columns
             grid_options = gb.build()
 
-            AgGrid(summary_df, gridOptions=grid_options, use_container_width=True)  # Use full width
+            # Use AG Grid with full width
+            AgGrid(summary_df, gridOptions=grid_options, height=300, width='100%')
             # Add more analysis or visualizations as needed here
         else:
             st.write("No data available for analysis.")
@@ -77,10 +79,10 @@ def main():
             gb = GridOptionsBuilder.from_dataframe(df)
             gb.configure_pagination(paginationAutoPageSize=True)
             gb.configure_side_bar()
-            gb.configure_default_column(wrapText=True, autoHeight=True)
             grid_options = gb.build()
 
-            AgGrid(df, gridOptions=grid_options, use_container_width=True)  # Use full width
+            # Use AG Grid with full width
+            AgGrid(df, gridOptions=grid_options, height=400, width='100%')
         else:
             st.write("No data available.")
 
