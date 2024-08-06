@@ -92,7 +92,6 @@ def main():
     with tab2:
         st.header("Data")
         if not df.empty:
-            # Ensure BMI is included in the data table
             gb = GridOptionsBuilder.from_dataframe(df)
             gb.configure_pagination(paginationAutoPageSize=True)
             gb.configure_side_bar()
