@@ -73,7 +73,32 @@ def insert_data_from_csv(csv_file_path):
     cursor.close()
     conn.close()
 
+def print_table_contents():
+    """Retrieve and print the contents of the weightracker table."""
+    conn = connect_to_db()
+    cursor = conn.cursor()
+
+    try:
+        # Execute a query to fetch all data from the weightracker table
+        cursor.execute("SELECT * FROM weightracker ORDER BY date;")
+        rows = cursor.fetchall()
+
+        # Print the column headers
+        colnames = [desc[0] for desc in cursor.description]
+        print("\t".join(colnames))
+
+        # Print each row
+        for row in rows:
+            print("\t".join(map(str, row)))
+
+    except Exception as e:
+        print(f"Error fetching data: {e}")
+    
+    cursor.close()
+    conn.close()
+
 if __name__ == "__main__":
     # Path to the CSV file in the root directory of the repository
     csv_file_path = 'weightracker.csv'
     insert_data_from_csv(csv_file_path)
+    print_table_contents()  # Print the final contents of the table
