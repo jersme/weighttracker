@@ -48,6 +48,9 @@ def get_weightracker_data(height_m, target_weight):
             # Calculate cumulative calories saved
             df['cumulative_calories_saved'] = df['calorie_delta'].cumsum()
 
+            # Calculate theoretical kilograms saved
+            df['theoretical_kgs_saved'] = df['cumulative_calories_saved'] / 7000
+
             return df
         except Exception as e:
             st.error(f"Error fetching or transforming data: {e}")
