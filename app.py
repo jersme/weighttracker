@@ -46,7 +46,7 @@ def get_weightracker_data(height_m, target_weight):
             df["calories_to_save"] = df["kgs_to_target"] * 7000
 
             # Calculate cumulative calories saved
-            df['cumulative_calories_saved'] = df['calorie_delta'].cumsum()
+            df['cumulative_calories_saved'] = -df['calorie_delta'].cumsum()  # Inverted to reflect savings positively
 
             # Calculate theoretical kilograms saved
             df['theoretical_kgs_saved'] = df['cumulative_calories_saved'] / 7000
@@ -54,6 +54,10 @@ def get_weightracker_data(height_m, target_weight):
             # Calculate actual kilograms saved
             initial_weight = df['weight'].iloc[0]
             df['actual_kgs_saved'] = initial_weight - df['weight']
+
+            # Ensure positive values for theoretical calculations
+            df['theoretical_kgs_saved'] = df['theoretical_kgs_saved'].abs()
+            df['cumulative_calories_saved'] = df['cumulative_calories_saved'].abs()
 
             return df
         except Exception as e:
