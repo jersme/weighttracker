@@ -2,6 +2,7 @@ import streamlit as st
 import psycopg2
 import pandas as pd
 from st_aggrid import AgGrid, GridOptionsBuilder
+import datetime
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -91,6 +92,42 @@ def main():
         st.session_state.refresh = False
     else:
         df = st.session_state.df
+
+    # Calculate metrics for display
+    if not df.empty:
+        # Total kilograms lost since start
+        kgs_lost_since_start = df['actual_kgs_saved'].iloc[-1]
+
+        # Kilograms to go to reach target weight
+        kgs_to_go = df['kgs_to_target'].iloc[-1]
+
+        # Total calories saved
+        calories_saved = df['cumulative_calories_saved'].iloc[-1]
+
+        # Total calories to save to reach target weight
+        calories_to_go = df['calories_to_save'].iloc[-1]
+
+        # Filter for the current week's data
+        today = datetime.date.today()
+        start_of_week = today - datetime.timedelta(days=today.weekday())
+        current_week_data = df[df['date'].dt.date >= start_of_week]
+
+        # Average values for the current week
+        avg_kgs_lost_this_week = current_week_data['actual_kgs_saved'].mean() if not current_week_data.empty else 0
+        avg_kgs_to_go_this_week = current_week_data['kgs_to_target'].mean() if not current_week_data.empty else 0
+        avg_calories_saved_this_week = current_week_data['cumulative_calories_saved'].mean() if not current_week_data.empty else 0
+        avg_calories_to_go_this_week = current_week_data['calories_to_save'].mean() if not current_week_data.empty else 0
+
+        # Display metrics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Kg's Lost Since Start", f"{kgs_lost_since_start:.2f} kg", delta=f"{avg_kgs_lost_this_week:.2f} kg")
+        with col2:
+            st.metric("Kg's to Go", f"{kgs_to_go:.2f} kg", delta=f"{avg_kgs_to_go_this_week:.2f} kg")
+        with col3:
+            st.metric("Calories Saved", f"{calories_saved:.0f}", delta=f"{avg_calories_saved_this_week:.0f}")
+        with col4:
+            st.metric("Calories to Go", f"{calories_to_go:.0f}", delta=f"{avg_calories_to_go_this_week:.0f}")
 
     # Create two tabs for different sections of the app
     tab1, tab2 = st.tabs(["Analysis", "Data"])
