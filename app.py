@@ -51,6 +51,10 @@ def get_weightracker_data(height_m, target_weight):
             # Calculate theoretical kilograms saved
             df['theoretical_kgs_saved'] = df['cumulative_calories_saved'] / 7000
 
+            # Calculate actual kilograms saved
+            initial_weight = df['weight'].iloc[0]
+            df['actual_kgs_saved'] = initial_weight - df['weight']
+
             return df
         except Exception as e:
             st.error(f"Error fetching or transforming data: {e}")
