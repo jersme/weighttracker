@@ -3,6 +3,7 @@ import psycopg2
 import pandas as pd
 from st_aggrid import AgGrid, GridOptionsBuilder
 import datetime
+import matplotlib.pyplot as plt
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -66,6 +67,37 @@ def get_weightracker_data(height_m, target_weight):
             return pd.DataFrame()  # Return empty DataFrame in case of error
         finally:
             conn.close()
+
+def plot_weight_over_time(df):
+    """Plot weight changes over time."""
+    plt.figure(figsize=(10, 5))
+    plt.plot(df['date'], df['weight'], marker='o', linestyle='-')
+    plt.title('Weight Over Time')
+    plt.xlabel('Date')
+    plt.ylabel('Weight (kg)')
+    plt.grid(True)
+    st.pyplot(plt)
+
+def plot_calorie_delta_over_time(df):
+    """Plot calorie delta over time."""
+    plt.figure(figsize=(10, 5))
+    plt.bar(df['date'], df['calorie_delta'], color='skyblue')
+    plt.title('Calorie Delta Over Time')
+    plt.xlabel('Date')
+    plt.ylabel('Calorie Delta')
+    plt.axhline(0, color='red', linestyle='--')
+    plt.grid(True)
+    st.pyplot(plt)
+
+def plot_bmi_over_time(df):
+    """Plot BMI changes over time."""
+    plt.figure(figsize=(10, 5))
+    plt.plot(df['date'], df['BMI'], marker='o', linestyle='-', color='green')
+    plt.title('BMI Over Time')
+    plt.xlabel('Date')
+    plt.ylabel('BMI')
+    plt.grid(True)
+    st.pyplot(plt)
 
 def main():
     """Main function to run the Streamlit app."""
@@ -146,6 +178,13 @@ def main():
             # Use AG Grid with full width
             AgGrid(summary_df, gridOptions=grid_options, height=300, width='100%')
             # Add more analysis or visualizations as needed here
+
+            # Add plots
+            st.subheader("Visualizations")
+            plot_weight_over_time(df)
+            plot_calorie_delta_over_time(df)
+            plot_bmi_over_time(df)
+
         else:
             st.write("No data available for analysis.")
 
