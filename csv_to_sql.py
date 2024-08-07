@@ -35,23 +35,32 @@ def insert_data_from_csv(csv_file_path):
     
     for _, row in df.iterrows():
         try:
-            # Insert each row into the table and update on conflict
+            # First, try to update the existing record with new values
             cursor.execute(
                 """
-                INSERT INTO weightracker (
-                    date, calories_burned, calories_consumed, weight, sports, notes
-                ) VALUES (%s, %s, %s, %s, %s, %s)
-                ON CONFLICT (date) DO UPDATE SET
-                    calories_burned = EXCLUDED.calories_burned,
-                    calories_consumed = EXCLUDED.calories_consumed,
-                    weight = EXCLUDED.weight,
-                    sports = EXCLUDED.sports,
-                    notes = EXCLUDED.notes
+                UPDATE weightracker SET
+                    calories_burned = %s,
+                    calories_consumed = %s,
+                    weight = %s,
+                    sports = %s,
+                    notes = %s
+                WHERE date = %s
                 """,
-                (row['date'], row['calories_burned'], row['calories_consumed'], row['Weight'], row['Sports'], row['Notes'])
+                (row['calories_burned'], row['calories_consumed'], row['Weight'], row['Sports'], row['Notes'], row['date'])
             )
+            
+            # If no rows were affected by the update, it means the record doesn't exist, so insert a new one
+            if cursor.rowcount == 0:
+                cursor.execute(
+                    """
+                    INSERT INTO weightracker (
+                        date, calories_burned, calories_consumed, weight, sports, notes
+                    ) VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (row['date'], row['calories_burned'], row['calories_consumed'], row['Weight'], row['Sports'], row['Notes'])
+                )
         except Exception as e:
-            print(f"Error inserting data: {e}")
+            print(f"Error inserting/updating data for date {row['date']}: {e}")
     
     conn.commit()
     cursor.close()
