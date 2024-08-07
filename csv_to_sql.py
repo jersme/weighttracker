@@ -33,6 +33,9 @@ def insert_data_from_csv(csv_file_path):
     # Load the CSV file with the correct delimiter
     df = pd.read_csv(csv_file_path, delimiter=';')
     
+    # Ensure the date is treated as a string
+    df['date'] = df['date'].astype(str)
+    
     for _, row in df.iterrows():
         try:
             # Print the row being processed for debugging
