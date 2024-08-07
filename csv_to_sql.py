@@ -35,6 +35,9 @@ def insert_data_from_csv(csv_file_path):
     
     for _, row in df.iterrows():
         try:
+            # Print the row being processed for debugging
+            print(f"Processing row: {row.to_dict()}")
+            
             # First, try to update the existing record with new values
             cursor.execute(
                 """
@@ -51,6 +54,7 @@ def insert_data_from_csv(csv_file_path):
             
             # If no rows were affected by the update, it means the record doesn't exist, so insert a new one
             if cursor.rowcount == 0:
+                print(f"Inserting new row for date {row['date']}")
                 cursor.execute(
                     """
                     INSERT INTO weightracker (
@@ -59,6 +63,9 @@ def insert_data_from_csv(csv_file_path):
                     """,
                     (row['date'], row['calories_burned'], row['calories_consumed'], row['Weight'], row['Sports'], row['Notes'])
                 )
+            else:
+                print(f"Updated existing row for date {row['date']}")
+                
         except Exception as e:
             print(f"Error inserting/updating data for date {row['date']}: {e}")
     
