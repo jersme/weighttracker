@@ -6,3 +6,4 @@ plotly
 numpy
 pygam
 streamlit-aggrid
+plotly.express
