@@ -72,20 +72,20 @@ def plot_weight_over_time(df):
     """Plot weight changes over time using Plotly."""
     fig = px.line(df, x='date', y='weight', title='Weight Over Time', markers=True)
     fig.update_layout(xaxis_title='Date', yaxis_title='Weight (kg)')
-    st.plotly_chart(fig)
+    return fig
 
 def plot_calorie_delta_over_time(df):
     """Plot calorie delta over time using Plotly."""
     fig = px.bar(df, x='date', y='calorie_delta', title='Calorie Delta Over Time', color='calorie_delta')
     fig.update_layout(xaxis_title='Date', yaxis_title='Calorie Delta', showlegend=False)
     fig.add_hline(y=0, line_dash="dash", line_color="red")
-    st.plotly_chart(fig)
+    return fig
 
 def plot_bmi_over_time(df):
     """Plot BMI changes over time using Plotly."""
     fig = px.line(df, x='date', y='BMI', title='BMI Over Time', markers=True, line_shape='linear')
     fig.update_layout(xaxis_title='Date', yaxis_title='BMI')
-    st.plotly_chart(fig)
+    return fig
 
 def main():
     """Main function to run the Streamlit app."""
@@ -169,9 +169,13 @@ def main():
 
             # Add plots using Plotly
             st.subheader("Visualizations")
-            plot_weight_over_time(df)
-            plot_calorie_delta_over_time(df)
-            plot_bmi_over_time(df)
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.plotly_chart(plot_weight_over_time(df), use_container_width=True)
+            with col2:
+                st.plotly_chart(plot_calorie_delta_over_time(df), use_container_width=True)
+            with col3:
+                st.plotly_chart(plot_bmi_over_time(df), use_container_width=True)
 
         else:
             st.write("No data available for analysis.")
