@@ -87,6 +87,15 @@ def plot_bmi_over_time(df):
     fig.update_layout(xaxis_title='Date', yaxis_title='BMI')
     return fig
 
+def plot_kgs_saved(df):
+    """Plot theoretical vs actual kilograms saved over time using Plotly."""
+    fig = px.line(df, x='date', y=['theoretical_kgs_saved', 'actual_kgs_saved'], 
+                  title='Theoretical vs Actual Kgs Saved Over Time', 
+                  markers=True, line_shape='linear')
+    fig.update_layout(xaxis_title='Date', yaxis_title='Kilograms Saved',
+                      legend_title_text='Type of Savings')
+    return fig
+
 def main():
     """Main function to run the Streamlit app."""
     # Use Streamlit's wide mode to use more horizontal space
@@ -176,6 +185,9 @@ def main():
                 st.plotly_chart(plot_calorie_delta_over_time(df), use_container_width=True)
             with col3:
                 st.plotly_chart(plot_bmi_over_time(df), use_container_width=True)
+
+            # Full-width plot for theoretical vs actual kilograms saved
+            st.plotly_chart(plot_kgs_saved(df), use_container_width=True)
 
         else:
             st.write("No data available for analysis.")
