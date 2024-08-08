@@ -7,3 +7,4 @@ numpy
 pygam
 streamlit-aggrid
 plotly.express
+sk.learn
