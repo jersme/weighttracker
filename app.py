@@ -101,9 +101,17 @@ def plot_kgs_saved(df):
 
 def predict_target_reach(df, target_weight):
     """Predict the date when the target weight will be reached."""
+    if df.empty:
+        st.error("No data available to perform prediction.")
+        return None, None, None
+
     initial_weight = df['weight'].iloc[0]  # Ensure initial weight is obtained here
     df['actual_kgs_saved'] = initial_weight - df['weight']
     df['days'] = (df['date'] - df['date'].min()).dt.days
+
+    if df['days'].empty or df['actual_kgs_saved'].empty:
+        st.error("Insufficient data for prediction.")
+        return None, None, None
 
     # Prepare the data for regression
     X = df['days'].values.reshape(-1, 1)
@@ -129,6 +137,9 @@ def predict_target_reach(df, target_weight):
 
 def plot_prediction(df, model, poly, target_weight):
     """Plot the prediction line along with actual kilograms lost."""
+    if model is None or poly is None:
+        return
+
     initial_weight = df['weight'].iloc[0]
     max_days = (predict_target_reach(df, target_weight)[0] - df['date'].min()).days
 
@@ -262,8 +273,11 @@ def main():
         st.header("Predictions")
         if not df.empty:
             predicted_date, model, poly = predict_target_reach(df, target_weight)
-            st.write(f"Predicted date to reach target weight: {predicted_date.date()}")
-            st.plotly_chart(plot_prediction(df, model, poly, target_weight), use_container_width=True)
+            if predicted_date and model and poly:
+                st.write(f"Predicted date to reach target weight: {predicted_date.date()}")
+                st.plotly_chart(plot_prediction(df, model, poly, target_weight), use_container_width=True)
+            else:
+                st.write("Prediction model could not be created.")
         else:
             st.write("No data available for predictions.")
 
