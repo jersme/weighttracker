@@ -117,6 +117,10 @@ def predict_target_reach(df, target_weight):
     X = df['days'].values.reshape(-1, 1)
     y = df['actual_kgs_saved'].values.reshape(-1, 1)
 
+    if X.shape[0] == 0 or y.shape[0] == 0:
+        st.error("Insufficient data points for regression.")
+        return None, None, None
+
     # Perform polynomial regression
     poly = PolynomialFeatures(degree=2)  # Adjust degree as needed
     X_poly = poly.fit_transform(X)
@@ -130,7 +134,12 @@ def predict_target_reach(df, target_weight):
 
     # Determine the day at which target weight is reached
     target_kgs_saved = initial_weight - target_weight
-    target_day = future_days[np.argmax(predicted_kgs_saved >= target_kgs_saved)]
+    target_day_index = np.argmax(predicted_kgs_saved >= target_kgs_saved)
+    if target_day_index == 0 and predicted_kgs_saved[0] < target_kgs_saved:
+        st.error("Model predicts target weight is not achievable with current trend.")
+        return None, None, None
+
+    target_day = future_days[target_day_index]
     predicted_date = df['date'].min() + datetime.timedelta(days=int(target_day))
 
     return predicted_date, model, poly
