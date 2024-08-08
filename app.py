@@ -117,8 +117,10 @@ def predict_target_reach(df, target_weight):
     X = df['days'].values.reshape(-1, 1)
     y = df['actual_kgs_saved'].values.reshape(-1, 1)
 
-    if X.shape[0] == 0 or y.shape[0] == 0:
-        st.error("Insufficient data points for regression.")
+    min_required_points = 5
+    if X.shape[0] < min_required_points or y.shape[0] < min_required_points:
+        st.error(f"Insufficient data points for regression. At least {min_required_points} points are required. "
+                 f"Current points: {X.shape[0]}. Additional points needed: {min_required_points - X.shape[0]}")
         return None, None, None
 
     # Perform polynomial regression
@@ -150,7 +152,11 @@ def plot_prediction(df, model, poly, target_weight):
         return
 
     initial_weight = df['weight'].iloc[0]
-    max_days = (predict_target_reach(df, target_weight)[0] - df['date'].min()).days
+    predicted_data = predict_target_reach(df, target_weight)
+    if predicted_data[0] is None:
+        return
+
+    max_days = (predicted_data[0] - df['date'].min()).days
 
     future_days = np.arange(0, max_days).reshape(-1, 1)
     future_days_poly = poly.transform(future_days)
