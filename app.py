@@ -118,7 +118,28 @@ def predict_target_reach(df, target_weight):
     predicted_days_to_target = (predicted_log_kgs_saved - model.intercept_) / model.coef_
 
     predicted_date = df['date'].min() + datetime.timedelta(days=predicted_days_to_target[0][0])
-    return predicted_date
+    return predicted_date, model
+
+def plot_prediction(df, model, target_weight):
+    """Plot the prediction line along with actual kilograms lost."""
+    initial_weight = df['weight'].iloc[0]
+    max_days = (predict_target_reach(df, target_weight)[0] - df['date'].min()).days
+
+    future_days = np.arange(0, max_days).reshape(-1, 1)
+    predicted_log_kgs_saved = model.predict(future_days)
+    predicted_kgs_saved = np.exp(predicted_log_kgs_saved) - 1
+
+    future_dates = [df['date'].min() + datetime.timedelta(days=int(day)) for day in future_days]
+
+    prediction_df = pd.DataFrame({
+        'date': future_dates,
+        'predicted_kgs_saved': predicted_kgs_saved.flatten()
+    })
+
+    fig = px.line(prediction_df, x='date', y='predicted_kgs_saved', title='Prediction of Weight Loss Over Time', labels={'predicted_kgs_saved': 'Kilograms Saved'})
+    fig.add_scatter(x=df['date'], y=df['actual_kgs_saved'], mode='markers', name='Actual Kg\'s Saved')
+
+    return fig
 
 def main():
     """Main function to run the Streamlit app."""
@@ -233,8 +254,9 @@ def main():
     with tab3:
         st.header("Predictions")
         if not df.empty:
-            predicted_date = predict_target_reach(df, target_weight)
+            predicted_date, model = predict_target_reach(df, target_weight)
             st.write(f"Predicted date to reach target weight: {predicted_date.date()}")
+            st.plotly_chart(plot_prediction(df, model, target_weight), use_container_width=True)
         else:
             st.write("No data available for predictions.")
 
