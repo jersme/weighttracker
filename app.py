@@ -192,4 +192,51 @@ def main():
             # Use AG Grid for displaying summary statistics
             summary_df = df.describe().reset_index()  # Reset index for better display
             gb = GridOptionsBuilder.from_dataframe(summary_df)
-            gb.configure_pagination(paginationAutoPageSize=True)  #
+            gb.configure_pagination(paginationAutoPageSize=True)  # Pagination
+            gb.configure_side_bar()  # Enable side bar for filtering and more
+            grid_options = gb.build()
+
+            # Use AG Grid with full width
+            AgGrid(summary_df, gridOptions=grid_options, height=300, width='100%')
+            # Add more analysis or visualizations as needed here
+
+            # Add plots using Plotly
+            st.subheader("Visualizations")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.plotly_chart(plot_weight_over_time(df), use_container_width=True)
+            with col2:
+                st.plotly_chart(plot_calorie_delta_over_time(df), use_container_width=True)
+            with col3:
+                st.plotly_chart(plot_bmi_over_time(df), use_container_width=True)
+
+            # Full-width plot for theoretical vs actual kilograms saved
+            st.plotly_chart(plot_kgs_saved(df), use_container_width=True)
+
+        else:
+            st.write("No data available for analysis.")
+
+    with tab2:
+        st.header("Data")
+        if not df.empty:
+            # Use AG Grid for displaying the main data
+            gb = GridOptionsBuilder.from_dataframe(df)
+            gb.configure_pagination(paginationAutoPageSize=True)
+            gb.configure_side_bar()
+            grid_options = gb.build()
+
+            # Use AG Grid with full width
+            AgGrid(df, gridOptions=grid_options, height=400, width='100%')
+        else:
+            st.write("No data available.")
+
+    with tab3:
+        st.header("Predictions")
+        if not df.empty:
+            predicted_date = predict_target_reach(df, target_weight)
+            st.write(f"Predicted date to reach target weight: {predicted_date.date()}")
+        else:
+            st.write("No data available for predictions.")
+
+if __name__ == "__main__":
+    main()
