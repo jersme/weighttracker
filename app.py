@@ -1,7 +1,7 @@
 import streamlit as st
 import psycopg2
 import pandas as pd
-from st_aggrid import AgGrid, GridOptionsBuilder
+from streamlit_aggrid import AgGrid, GridOptionsBuilder
 import datetime
 import plotly.express as px
 from sklearn.linear_model import LinearRegression
@@ -100,7 +100,7 @@ def plot_kgs_saved(df):
 
 def predict_target_reach(df, target_weight):
     """Predict the date when the target weight will be reached."""
-    # Using logarithmic transformation to account for the difficulty of losing weight closer to the target
+    initial_weight = df['weight'].iloc[0]  # Ensure initial weight is obtained here
     df['log_actual_kgs_saved'] = np.log(df['actual_kgs_saved'] + 1)
     df['days'] = (df['date'] - df['date'].min()).dt.days
 
