@@ -1,7 +1,7 @@
 import streamlit as st
 import psycopg2
 import pandas as pd
-from streamlit_aggrid import AgGrid, GridOptionsBuilder
+from streamlit-aggrid import AgGrid, GridOptionsBuilder
 import datetime
 import plotly.express as px
 from sklearn.linear_model import LinearRegression
