@@ -1,10 +1,7 @@
 streamlit
+psycopg2-binary
 pandas
-sqlalchemy
-psycopg2-binary  # or psycopg2, but psycopg2-binary is often easier to install
+st-aggrid
 plotly
+scikit-learn
 numpy
-pygam
-streamlit-aggrid
-plotly.express
-sk.learn
