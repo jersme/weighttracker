@@ -1,7 +1,7 @@
 streamlit
 psycopg2-binary
 pandas
-st-aggrid
+streamlit-aggrid
 plotly
 scikit-learn
 numpy
