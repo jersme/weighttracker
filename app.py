@@ -4,6 +4,8 @@ import pandas as pd
 from st_aggrid import AgGrid, GridOptionsBuilder
 import datetime
 import plotly.express as px
+from sklearn.linear_model import LinearRegression
+import numpy as np
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -96,6 +98,28 @@ def plot_kgs_saved(df):
                       legend_title_text='Type of Savings')
     return fig
 
+def predict_target_reach(df, target_weight):
+    """Predict the date when the target weight will be reached."""
+    # Using logarithmic transformation to account for the difficulty of losing weight closer to the target
+    df['log_actual_kgs_saved'] = np.log(df['actual_kgs_saved'] + 1)
+    df['days'] = (df['date'] - df['date'].min()).dt.days
+
+    # Prepare the data for regression
+    X = df['days'].values.reshape(-1, 1)
+    y = df['log_actual_kgs_saved'].values.reshape(-1, 1)
+
+    # Perform linear regression
+    model = LinearRegression()
+    model.fit(X, y)
+
+    # Predict future days needed to reach the target weight
+    current_days = df['days'].max()
+    predicted_log_kgs_saved = np.log((initial_weight - target_weight) + 1)
+    predicted_days_to_target = (predicted_log_kgs_saved - model.intercept_) / model.coef_
+
+    predicted_date = df['date'].min() + datetime.timedelta(days=predicted_days_to_target[0][0])
+    return predicted_date
+
 def main():
     """Main function to run the Streamlit app."""
     # Use Streamlit's wide mode to use more horizontal space
@@ -158,8 +182,8 @@ def main():
         with col4:
             st.metric("Calories to Go", f"{calories_to_go:.0f}", delta=f"{avg_calories_to_go_this_week:.0f}")
 
-    # Create two tabs for different sections of the app
-    tab1, tab2 = st.tabs(["Analysis", "Data"])
+    # Create three tabs for different sections of the app
+    tab1, tab2, tab3 = st.tabs(["Analysis", "Data", "Predictions"])
 
     with tab1:
         st.header("Analysis")
@@ -167,44 +191,3 @@ def main():
             st.subheader("Summary Statistics")
             # Use AG Grid for displaying summary statistics
             summary_df = df.describe().reset_index()  # Reset index for better display
-            gb = GridOptionsBuilder.from_dataframe(summary_df)
-            gb.configure_pagination(paginationAutoPageSize=True)  # Pagination
-            gb.configure_side_bar()  # Enable side bar for filtering and more
-            grid_options = gb.build()
-
-            # Use AG Grid with full width
-            AgGrid(summary_df, gridOptions=grid_options, height=300, width='100%')
-            # Add more analysis or visualizations as needed here
-
-            # Add plots using Plotly
-            st.subheader("Visualizations")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.plotly_chart(plot_weight_over_time(df), use_container_width=True)
-            with col2:
-                st.plotly_chart(plot_calorie_delta_over_time(df), use_container_width=True)
-            with col3:
-                st.plotly_chart(plot_bmi_over_time(df), use_container_width=True)
-
-            # Full-width plot for theoretical vs actual kilograms saved
-            st.plotly_chart(plot_kgs_saved(df), use_container_width=True)
-
-        else:
-            st.write("No data available for analysis.")
-
-    with tab2:
-        st.header("Data")
-        if not df.empty:
-            # Use AG Grid for displaying the main data
-            gb = GridOptionsBuilder.from_dataframe(df)
-            gb.configure_pagination(paginationAutoPageSize=True)
-            gb.configure_side_bar()
-            grid_options = gb.build()
-
-            # Use AG Grid with full width
-            AgGrid(df, gridOptions=grid_options, height=400, width='100%')
-        else:
-            st.write("No data available.")
-
-if __name__ == "__main__":
-    main()
