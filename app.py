@@ -8,6 +8,11 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
 import numpy as np
 
+# Constants
+MIN_REQUIRED_POINTS = 5
+POLY_DEGREE = 2
+CALORIES_PER_KG = 7000
+
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
     try:
@@ -48,13 +53,13 @@ def get_weightracker_data(height_m, target_weight):
             df["kgs_to_target"] = df["weight"] - target_weight
 
             # Calculate calories to save to reach target weight
-            df["calories_to_save"] = df["kgs_to_target"] * 7000
+            df["calories_to_save"] = df["kgs_to_target"] * CALORIES_PER_KG
 
             # Calculate cumulative calories saved
             df['cumulative_calories_saved'] = -df['calorie_delta'].cumsum()  # Inverted to reflect savings positively
 
             # Calculate theoretical kilograms saved
-            df['theoretical_kgs_saved'] = df['cumulative_calories_saved'] / 7000
+            df['theoretical_kgs_saved'] = df['cumulative_calories_saved'] / CALORIES_PER_KG
 
             # Calculate actual kilograms saved
             initial_weight = df['weight'].iloc[0]
@@ -105,7 +110,7 @@ def predict_target_reach(df, target_weight):
         st.error("No data available to perform prediction.")
         return None, None, None
 
-    initial_weight = df['weight'].iloc[0]  # Ensure initial weight is obtained here
+    initial_weight = df['weight'].iloc[0]
     df['actual_kgs_saved'] = initial_weight - df['weight']
     df['days'] = (df['date'] - df['date'].min()).dt.days
 
@@ -117,14 +122,13 @@ def predict_target_reach(df, target_weight):
     X = df['days'].values.reshape(-1, 1)
     y = df['actual_kgs_saved'].values.reshape(-1, 1)
 
-    min_required_points = 5
-    if X.shape[0] < min_required_points or y.shape[0] < min_required_points:
-        st.error(f"Insufficient data points for regression. At least {min_required_points} points are required. "
-                 f"Current points: {X.shape[0]}. Additional points needed: {min_required_points - X.shape[0]}")
+    if X.shape[0] < MIN_REQUIRED_POINTS or y.shape[0] < MIN_REQUIRED_POINTS:
+        st.error(f"Insufficient data points for regression. At least {MIN_REQUIRED_POINTS} points are required. "
+                 f"Current points: {X.shape[0]}. Additional points needed: {MIN_REQUIRED_POINTS - X.shape[0]}")
         return None, None, None
 
     # Perform polynomial regression
-    poly = PolynomialFeatures(degree=2)  # Adjust degree as needed
+    poly = PolynomialFeatures(degree=POLY_DEGREE)
     X_poly = poly.fit_transform(X)
     model = LinearRegression()
     model.fit(X_poly, y)
@@ -174,16 +178,96 @@ def plot_prediction(df, model, poly, target_weight):
 
     return fig
 
+def display_metrics(df, target_weight):
+    """Display key metrics based on the weight tracker data."""
+    # Calculate metrics
+    kgs_lost_since_start = df['actual_kgs_saved'].iloc[-1]
+    kgs_to_go = df['kgs_to_target'].iloc[-1]
+    calories_saved = df['cumulative_calories_saved'].iloc[-1]
+    calories_to_go = df['calories_to_save'].iloc[-1]
+
+    # Filter for the current week's data
+    today = datetime.date.today()
+    start_of_week = today - datetime.timedelta(days=today.weekday())
+    current_week_data = df[df['date'].dt.date >= start_of_week]
+
+    # Average values for the current week
+    avg_kgs_lost_this_week = current_week_data['actual_kgs_saved'].mean() if not current_week_data.empty else 0
+    avg_kgs_to_go_this_week = current_week_data['kgs_to_target'].mean() if not current_week_data.empty else 0
+    avg_calories_saved_this_week = current_week_data['cumulative_calories_saved'].mean() if not current_week_data.empty else 0
+    avg_calories_to_go_this_week = current_week_data['calories_to_save'].mean() if not current_week_data.empty else 0
+
+    # Display metrics
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Kg's Lost Since Start", f"{kgs_lost_since_start:.2f} kg", delta=f"{avg_kgs_lost_this_week:.2f} kg")
+    with col2:
+        st.metric("Kg's to Go", f"{kgs_to_go:.2f} kg", delta=f"{avg_kgs_to_go_this_week:.2f} kg")
+    with col3:
+        st.metric("Calories Saved", f"{calories_saved:.0f}", delta=f"{avg_calories_saved_this_week:.0f}")
+    with col4:
+        st.metric("Calories to Go", f"{calories_to_go:.0f}", delta=f"{avg_calories_to_go_this_week:.0f}")
+
+def display_tabs(df, target_weight):
+    """Display tabs for analysis, data, and predictions."""
+    tab1, tab2, tab3 = st.tabs(["Analysis", "Data", "Predictions"])
+
+    with tab1:
+        st.header("Analysis")
+        if not df.empty:
+            st.subheader("Summary Statistics")
+            summary_df = df.describe().reset_index()
+            gb = GridOptionsBuilder.from_dataframe(summary_df)
+            gb.configure_pagination(paginationAutoPageSize=True)
+            gb.configure_side_bar()
+            grid_options = gb.build()
+            AgGrid(summary_df, gridOptions=grid_options, height=300, width='100%')
+
+            st.subheader("Visualizations")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.plotly_chart(plot_weight_over_time(df), use_container_width=True)
+            with col2:
+                st.plotly_chart(plot_calorie_delta_over_time(df), use_container_width=True)
+            with col3:
+                st.plotly_chart(plot_bmi_over_time(df), use_container_width=True)
+
+            st.plotly_chart(plot_kgs_saved(df), use_container_width=True)
+        else:
+            st.write("No data available for analysis.")
+
+    with tab2:
+        st.header("Data")
+        if not df.empty:
+            gb = GridOptionsBuilder.from_dataframe(df)
+            gb.configure_pagination(paginationAutoPageSize=True)
+            gb.configure_side_bar()
+            grid_options = gb.build()
+            AgGrid(df, gridOptions=grid_options, height=400, width='100%')
+        else:
+            st.write("No data available.")
+
+    with tab3:
+        st.header("Predictions")
+        if not df.empty:
+            predicted_date, model, poly = predict_target_reach(df, target_weight)
+            if predicted_date and model and poly:
+                st.write(f"Predicted date to reach target weight: {predicted_date.date()}")
+                st.plotly_chart(plot_prediction(df, model, poly, target_weight), use_container_width=True)
+            else:
+                st.write("Prediction model could not be created.")
+        else:
+            st.write("No data available for predictions.")
+
 def main():
     """Main function to run the Streamlit app."""
-    # Use Streamlit's wide mode to use more horizontal space
     st.set_page_config(layout="wide")
     st.title("Weight Tracker")
 
     # Sidebar for additional inputs and information
     st.sidebar.header("Settings")
     target_weight = st.sidebar.number_input("Goal Weight (kg)", min_value=0.0, value=75.0, step=0.1)
-    height_m = st.sidebar.number_input("Height (m)", min_value=1.0, value=1.83, step=0.01)  # Allow decimal values for height
+    height_m = st.sidebar.number_input("Height (m)", min_value=1.0, value=1.83, step=0.01)
 
     # Button to refresh data
     if st.sidebar.button("Refresh Data"):
@@ -200,101 +284,11 @@ def main():
     else:
         df = st.session_state.df
 
-    # Calculate metrics for display
     if not df.empty:
-        # Total kilograms lost since start
-        kgs_lost_since_start = df['actual_kgs_saved'].iloc[-1]
-
-        # Kilograms to go to reach target weight
-        kgs_to_go = df['kgs_to_target'].iloc[-1]
-
-        # Total calories saved
-        calories_saved = df['cumulative_calories_saved'].iloc[-1]
-
-        # Total calories to save to reach target weight
-        calories_to_go = df['calories_to_save'].iloc[-1]
-
-        # Filter for the current week's data
-        today = datetime.date.today()
-        start_of_week = today - datetime.timedelta(days=today.weekday())
-        current_week_data = df[df['date'].dt.date >= start_of_week]
-
-        # Average values for the current week
-        avg_kgs_lost_this_week = current_week_data['actual_kgs_saved'].mean() if not current_week_data.empty else 0
-        avg_kgs_to_go_this_week = current_week_data['kgs_to_target'].mean() if not current_week_data.empty else 0
-        avg_calories_saved_this_week = current_week_data['cumulative_calories_saved'].mean() if not current_week_data.empty else 0
-        avg_calories_to_go_this_week = current_week_data['calories_to_save'].mean() if not current_week_data.empty else 0
-
-        # Display metrics
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Kg's Lost Since Start", f"{kgs_lost_since_start:.2f} kg", delta=f"{avg_kgs_lost_this_week:.2f} kg")
-        with col2:
-            st.metric("Kg's to Go", f"{kgs_to_go:.2f} kg", delta=f"{avg_kgs_to_go_this_week:.2f} kg")
-        with col3:
-            st.metric("Calories Saved", f"{calories_saved:.0f}", delta=f"{avg_calories_saved_this_week:.0f}")
-        with col4:
-            st.metric("Calories to Go", f"{calories_to_go:.0f}", delta=f"{avg_calories_to_go_this_week:.0f}")
-
-    # Create three tabs for different sections of the app
-    tab1, tab2, tab3 = st.tabs(["Analysis", "Data", "Predictions"])
-
-    with tab1:
-        st.header("Analysis")
-        if not df.empty:
-            st.subheader("Summary Statistics")
-            # Use AG Grid for displaying summary statistics
-            summary_df = df.describe().reset_index()  # Reset index for better display
-            gb = GridOptionsBuilder.from_dataframe(summary_df)
-            gb.configure_pagination(paginationAutoPageSize=True)  # Pagination
-            gb.configure_side_bar()  # Enable side bar for filtering and more
-            grid_options = gb.build()
-
-            # Use AG Grid with full width
-            AgGrid(summary_df, gridOptions=grid_options, height=300, width='100%')
-            # Add more analysis or visualizations as needed here
-
-            # Add plots using Plotly
-            st.subheader("Visualizations")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.plotly_chart(plot_weight_over_time(df), use_container_width=True)
-            with col2:
-                st.plotly_chart(plot_calorie_delta_over_time(df), use_container_width=True)
-            with col3:
-                st.plotly_chart(plot_bmi_over_time(df), use_container_width=True)
-
-            # Full-width plot for theoretical vs actual kilograms saved
-            st.plotly_chart(plot_kgs_saved(df), use_container_width=True)
-
-        else:
-            st.write("No data available for analysis.")
-
-    with tab2:
-        st.header("Data")
-        if not df.empty:
-            # Use AG Grid for displaying the main data
-            gb = GridOptionsBuilder.from_dataframe(df)
-            gb.configure_pagination(paginationAutoPageSize=True)
-            gb.configure_side_bar()
-            grid_options = gb.build()
-
-            # Use AG Grid with full width
-            AgGrid(df, gridOptions=grid_options, height=400, width='100%')
-        else:
-            st.write("No data available.")
-
-    with tab3:
-        st.header("Predictions")
-        if not df.empty:
-            predicted_date, model, poly = predict_target_reach(df, target_weight)
-            if predicted_date and model and poly:
-                st.write(f"Predicted date to reach target weight: {predicted_date.date()}")
-                st.plotly_chart(plot_prediction(df, model, poly, target_weight), use_container_width=True)
-            else:
-                st.write("Prediction model could not be created.")
-        else:
-            st.write("No data available for predictions.")
+        display_metrics(df, target_weight)
+        display_tabs(df, target_weight)
+    else:
+        st.write("No data available.")
 
 if __name__ == "__main__":
     main()
