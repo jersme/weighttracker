@@ -76,10 +76,14 @@ def get_weightracker_data(height_m, target_weight):
         finally:
             conn.close()
 
-def plot_weight_over_time(df):
+def plot_weight_over_time(df, target_weight):
     """Plot weight changes over time using Plotly."""
     fig = px.line(df, x='date', y='weight', title='Weight Over Time', markers=True)
     fig.update_layout(xaxis_title='Date', yaxis_title='Weight (kg)')
+    
+    # Add a horizontal line for the target weight
+    fig.add_hline(y=target_weight, line_dash="dash", line_color="green", annotation_text="Target Weight", annotation_position="bottom right")
+    
     return fig
 
 def plot_calorie_delta_over_time(df):
@@ -89,10 +93,19 @@ def plot_calorie_delta_over_time(df):
     fig.add_hline(y=0, line_dash="dash", line_color="red")
     return fig
 
-def plot_bmi_over_time(df):
+def plot_bmi_over_time(df, height_m, target_weight):
     """Plot BMI changes over time using Plotly."""
-    fig = px.line(df, x='date', y='BMI', title='BMI Over Time', markers=True, line_shape='linear')
+    target_bmi = target_weight / (height_m ** 2)
+
+    # Create a color column to change the color of the line based on BMI value
+    df['bmi_color'] = np.where(df['BMI'] > 25, 'red', 'blue')
+
+    fig = px.line(df, x='date', y='BMI', title='BMI Over Time', markers=True, line_shape='linear', color='bmi_color', color_discrete_map={"red": "red", "blue": "blue"})
     fig.update_layout(xaxis_title='Date', yaxis_title='BMI')
+    
+    # Add a horizontal line for the target BMI
+    fig.add_hline(y=target_bmi, line_dash="dash", line_color="green", annotation_text="Target BMI", annotation_position="bottom right")
+
     return fig
 
 def plot_kgs_saved(df):
@@ -208,7 +221,7 @@ def display_metrics(df, target_weight):
     with col4:
         st.metric("Calories to Go", f"{calories_to_go:.0f}", delta=f"{avg_calories_to_go_this_week:.0f}")
 
-def display_tabs(df, target_weight):
+def display_tabs(df, target_weight, height_m):
     """Display tabs for analysis, data, and predictions."""
     tab1, tab2, tab3 = st.tabs(["Analysis", "Data", "Predictions"])
 
@@ -226,11 +239,11 @@ def display_tabs(df, target_weight):
             st.subheader("Visualizations")
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.plotly_chart(plot_weight_over_time(df), use_container_width=True)
+                st.plotly_chart(plot_weight_over_time(df, target_weight), use_container_width=True)
             with col2:
                 st.plotly_chart(plot_calorie_delta_over_time(df), use_container_width=True)
             with col3:
-                st.plotly_chart(plot_bmi_over_time(df), use_container_width=True)
+                st.plotly_chart(plot_bmi_over_time(df, height_m, target_weight), use_container_width=True)
 
             st.plotly_chart(plot_kgs_saved(df), use_container_width=True)
         else:
@@ -286,7 +299,7 @@ def main():
 
     if not df.empty:
         display_metrics(df, target_weight)
-        display_tabs(df, target_weight)
+        display_tabs(df, target_weight, height_m)
     else:
         st.write("No data available.")
 
