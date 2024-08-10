@@ -79,12 +79,17 @@ def get_weightracker_data(height_m, target_weight):
 def plot_weight_over_time(df, target_weight):
     """Plot weight changes over time using Plotly."""
     fig = px.line(df, x='date', y='weight', title='Weight Over Time', markers=True)
-    fig.update_layout(xaxis_title='Date', yaxis_title='Weight (kg)')
+    fig.update_layout(
+        xaxis_title='Date', 
+        yaxis_title='Weight (kg)',
+        yaxis=dict(range=[0, df['weight'].max() * 1.1])  # Set the y-axis to start at 0 and go slightly above the max weight
+    )
     
     # Add a horizontal line for the target weight
     fig.add_hline(y=target_weight, line_dash="dash", line_color="green", annotation_text="Target Weight", annotation_position="bottom right")
     
     return fig
+
 
 def plot_calorie_delta_over_time(df):
     """Plot calorie delta over time using Plotly."""
