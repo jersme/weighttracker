@@ -10,7 +10,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5
 CALORIES_PER_KG = 7000
-VERSION = "1.0.1"  # Update this version number with every change
+VERSION = "1.0.2"  # Update this version number with every change
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
