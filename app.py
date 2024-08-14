@@ -10,6 +10,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5
 CALORIES_PER_KG = 7000
+VERSION = "1.0.1"  # Update this version number with every change
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -280,6 +281,9 @@ def main():
     st.sidebar.header("Settings")
     target_weight = st.sidebar.number_input("Goal Weight (kg)", min_value=0.0, value=75.0, step=0.1)
     height_m = st.sidebar.number_input("Height (m)", min_value=1.0, value=1.83, step=0.01)
+
+    # Display version information
+    st.sidebar.write(f"Version: {VERSION}")
 
     # Button to refresh data
     if st.sidebar.button("Refresh Data"):
