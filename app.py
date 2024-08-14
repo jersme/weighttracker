@@ -5,12 +5,10 @@ from st_aggrid import AgGrid, GridOptionsBuilder
 import datetime
 import plotly.express as px
 from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import PolynomialFeatures
 import numpy as np
 
 # Constants
 MIN_REQUIRED_POINTS = 5
-POLY_DEGREE = 2
 CALORIES_PER_KG = 7000
 
 def connect_to_db():
@@ -123,7 +121,7 @@ def plot_kgs_saved(df):
     return fig
 
 def predict_target_reach(df, target_weight):
-    """Predict the date when the target weight will be reached."""
+    """Predict the date when the target weight will be reached using linear regression."""
     if df.empty:
         st.error("No data available to perform prediction.")
         return None, None, None
@@ -145,16 +143,13 @@ def predict_target_reach(df, target_weight):
                  f"Current points: {X.shape[0]}. Additional points needed: {MIN_REQUIRED_POINTS - X.shape[0]}")
         return None, None, None
 
-    # Perform polynomial regression
-    poly = PolynomialFeatures(degree=POLY_DEGREE)
-    X_poly = poly.fit_transform(X)
+    # Perform linear regression
     model = LinearRegression()
-    model.fit(X_poly, y)
+    model.fit(X, y)
 
     # Predict future days needed to reach the target weight
     future_days = np.arange(0, 2 * df['days'].max()).reshape(-1, 1)
-    future_days_poly = poly.transform(future_days)
-    predicted_kgs_saved = model.predict(future_days_poly)
+    predicted_kgs_saved = model.predict(future_days)
 
     # Determine the day at which target weight is reached
     target_kgs_saved = initial_weight - target_weight
@@ -166,23 +161,22 @@ def predict_target_reach(df, target_weight):
     target_day = future_days[target_day_index]
     predicted_date = df['date'].min() + datetime.timedelta(days=int(target_day))
 
-    return predicted_date, model, poly
+    return predicted_date, model, None
 
-def plot_prediction(df, model, poly, target_weight):
+def plot_prediction(df, model, _, target_weight):
     """Plot the prediction line along with actual kilograms lost."""
-    if model is None or poly is None:
+    if model is None:
         return
 
     initial_weight = df['weight'].iloc[0]
-    predicted_data = predict_target_reach(df, target_weight)
-    if predicted_data[0] is None:
+    predicted_date, model, _ = predict_target_reach(df, target_weight)
+    if predicted_date is None:
         return
 
-    max_days = (predicted_data[0] - df['date'].min()).days
+    max_days = (predicted_date - df['date'].min()).days
 
     future_days = np.arange(0, max_days).reshape(-1, 1)
-    future_days_poly = poly.transform(future_days)
-    predicted_kgs_saved = model.predict(future_days_poly)
+    predicted_kgs_saved = model.predict(future_days)
 
     future_dates = [df['date'].min() + datetime.timedelta(days=int(day)) for day in future_days]
 
@@ -268,10 +262,10 @@ def display_tabs(df, target_weight, height_m):
     with tab3:
         st.header("Predictions")
         if not df.empty:
-            predicted_date, model, poly = predict_target_reach(df, target_weight)
-            if predicted_date and model and poly:
+            predicted_date, model, _ = predict_target_reach(df, target_weight)
+            if predicted_date and model:
                 st.write(f"Predicted date to reach target weight: {predicted_date.date()}")
-                st.plotly_chart(plot_prediction(df, model, poly, target_weight), use_container_width=True)
+                st.plotly_chart(plot_prediction(df, model, None, target_weight), use_container_width=True)
             else:
                 st.write("Prediction model could not be created.")
         else:
