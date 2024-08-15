@@ -10,7 +10,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5
 CALORIES_PER_KG = 7000
-VERSION = "1.0.11"  # Updated version number
+VERSION = "1.0.13"  # Updated version number
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -185,7 +185,7 @@ def calculate_calorie_burn_rate_and_maintenance(df):
     # Drop NaN values
     df = df.dropna(subset=['weight_delta', 'calorie_delta'])
 
-    # Prepare the data for regression: weight_delta vs. calorie_delta
+    # Prepare the data for regression: calorie_delta vs. weight_delta
     X = df['calorie_delta'].values.reshape(-1, 1)
     y = df['weight_delta'].values.reshape(-1, 1)
 
@@ -193,11 +193,21 @@ def calculate_calorie_burn_rate_and_maintenance(df):
     model = LinearRegression()
     model.fit(X, y)
 
-    # Calorie burn rate (slope of the regression line)
+    # Slope and intercept
     calorie_burn_rate = model.coef_[0][0]
+    intercept = model.intercept_[0]
 
-    # Calculate the daily calorie intake needed to maintain weight (weight_delta = 0)
-    maintenance_calories = -model.intercept_[0] / calorie_burn_rate
+    # Calculate the calorie delta needed to maintain weight (weight_delta = 0)
+    # calorie_delta = -intercept / calorie_burn_rate
+    if calorie_burn_rate != 0:
+        calorie_delta_to_maintain_weight = -intercept / calorie_burn_rate
+    else:
+        st.error("Calorie burn rate is zero, unable to calculate maintenance calories.")
+        return None, None
+
+    # Calculate the daily calories needed to maintain weight
+    avg_calories_burned = df['calories_burned'].mean()
+    maintenance_calories = avg_calories_burned + calorie_delta_to_maintain_weight
 
     return calorie_burn_rate, maintenance_calories
 
