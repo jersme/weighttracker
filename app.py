@@ -10,7 +10,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5
 CALORIES_PER_KG = 7000
-VERSION = "1.0.6"  # Updated version number
+VERSION = "1.0.7"  # Updated version number
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -171,18 +171,20 @@ def plot_prediction(df, model, target_weight):
     if predicted_date is None:
         return
 
-    # Convert predicted_date to a Python datetime object if it's a pandas Timestamp
-    predicted_date = predicted_date.to_pydatetime()
+    # Convert predicted_date to a string in 'YYYY-MM-DD' format for Plotly
+    predicted_date_str = predicted_date.strftime('%Y-%m-%d')
 
+    # Ensure `max_days` is an integer and not directly added to a datetime object
     max_days = (predicted_date - df['date'].min()).days
     if max_days <= 0:
         st.error("Prediction date is in the past. No future data to plot.")
         return
 
-    future_days = np.arange(0, max_days + 1).reshape(-1, 1)
-    predicted_kgs_saved = model.predict(future_days)
+    # Calculate future dates using Timedelta
+    future_days = np.arange(0, max_days + 1)
+    future_dates = [df['date'].min() + pd.Timedelta(days=int(day)) for day in future_days]
 
-    future_dates = df['date'].min() + pd.to_timedelta(future_days.flatten(), unit='D')
+    predicted_kgs_saved = model.predict(future_days.reshape(-1, 1))
 
     prediction_df = pd.DataFrame({
         'date': future_dates,
@@ -197,9 +199,28 @@ def plot_prediction(df, model, target_weight):
                   )
     fig.add_scatter(x=df['date'], y=df['actual_kgs_saved'], mode='markers', name="Actual Kg's Saved", marker=dict(color='blue'))
     
-    # Add vertical line for the predicted date
-    fig.add_vline(x=predicted_date, line_dash="dot", line_color="red", 
-                  annotation_text="Target Date", annotation_position="top right")
+    # Add a vertical line using add_shape instead of add_vline
+    fig.add_shape(
+        type="line",
+        x0=predicted_date_str,
+        x1=predicted_date_str,
+        y0=0,
+        y1=1,
+        xref='x',
+        yref='paper',
+        line=dict(color="red", width=2, dash="dot"),
+    )
+
+    # Add annotation for the target date
+    fig.add_annotation(
+        x=predicted_date_str,
+        y=max(prediction_df['predicted_kgs_saved']),
+        text="Target Date",
+        showarrow=True,
+        arrowhead=1,
+        ax=0,
+        ay=-40
+    )
 
     fig.update_layout(legend=dict(y=0.5, traceorder='reversed', font_size=12))
 
