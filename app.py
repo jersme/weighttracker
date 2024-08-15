@@ -10,7 +10,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5
 CALORIES_PER_KG = 7000
-VERSION = "1.1.3"  # Updated version number
+VERSION = "1.1.9"  # Updated version number
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -167,7 +167,7 @@ def predict_target_reach(df, target_weight):
 
     # Predict the day at which the target weight will be reached
     target_kgs_saved = initial_weight - target_weight
-    predicted_days = (target_kgs_saved - model.intercept()[0]) / model.coef_[0][0]
+    predicted_days = (target_kgs_saved - model.intercept_[0]) / model.coef_[0][0]
     
     if predicted_days < 0:
         st.error("Model predicts that the target weight has already been achieved.")
