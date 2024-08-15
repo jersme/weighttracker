@@ -10,7 +10,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5
 CALORIES_PER_KG = 7000
-VERSION = "1.0.2"  # Update this version number with every change
+VERSION = "1.0.3"  # Updated version number
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -92,7 +92,7 @@ def plot_weight_over_time(df, target_weight):
 
 def plot_calorie_delta_over_time(df):
     """Plot calorie delta over time using Plotly."""
-    fig = px.bar(df, x='date', y='calorie_delta', title='Calorie Delta Over Time', color='calorie_delta')
+    fig = px.bar(df, x='date', y='calorie_delta', title='Calorie Delta Over Time', color='calorie_delta', color_continuous_scale='RdBu')
     fig.update_layout(xaxis_title='Date', yaxis_title='Calorie Delta', showlegend=False)
     fig.add_hline(y=0, line_dash="dash", line_color="red")
     return fig
@@ -125,7 +125,7 @@ def predict_target_reach(df, target_weight):
     """Predict the date when the target weight will be reached using linear regression."""
     if df.empty:
         st.error("No data available to perform prediction.")
-        return None, None, None
+        return None, None
 
     initial_weight = df['weight'].iloc[0]
     df['actual_kgs_saved'] = initial_weight - df['weight']
@@ -133,7 +133,7 @@ def predict_target_reach(df, target_weight):
 
     if df['days'].empty or df['actual_kgs_saved'].empty:
         st.error("Insufficient data for prediction.")
-        return None, None, None
+        return None, None
 
     # Prepare the data for regression
     X = df['days'].values.reshape(-1, 1)
@@ -142,52 +142,62 @@ def predict_target_reach(df, target_weight):
     if X.shape[0] < MIN_REQUIRED_POINTS or y.shape[0] < MIN_REQUIRED_POINTS:
         st.error(f"Insufficient data points for regression. At least {MIN_REQUIRED_POINTS} points are required. "
                  f"Current points: {X.shape[0]}. Additional points needed: {MIN_REQUIRED_POINTS - X.shape[0]}")
-        return None, None, None
+        return None, None
 
     # Perform linear regression
     model = LinearRegression()
     model.fit(X, y)
 
-    # Predict future days needed to reach the target weight
-    future_days = np.arange(0, 2 * df['days'].max()).reshape(-1, 1)
-    predicted_kgs_saved = model.predict(future_days)
-
-    # Determine the day at which target weight is reached
+    # Predict the day at which the target weight will be reached
     target_kgs_saved = initial_weight - target_weight
-    target_day_index = np.argmax(predicted_kgs_saved >= target_kgs_saved)
-    if target_day_index == 0 and predicted_kgs_saved[0] < target_kgs_saved:
-        st.error("Model predicts target weight is not achievable with current trend.")
-        return None, None, None
+    predicted_days = (target_kgs_saved - model.intercept_[0]) / model.coef_[0][0]
+    
+    if predicted_days < 0:
+        st.error("Model predicts that the target weight has already been achieved.")
+        return None, None
 
-    target_day = future_days[target_day_index]
-    predicted_date = df['date'].min() + datetime.timedelta(days=int(target_day))
+    predicted_date = df['date'].min() + datetime.timedelta(days=int(predicted_days))
 
-    return predicted_date, model, None
+    return predicted_date, model
 
-def plot_prediction(df, model, _, target_weight):
+def plot_prediction(df, model, target_weight):
     """Plot the prediction line along with actual kilograms lost."""
     if model is None:
         return
 
     initial_weight = df['weight'].iloc[0]
-    predicted_date, model, _ = predict_target_reach(df, target_weight)
+    predicted_date, _ = predict_target_reach(df, target_weight)
     if predicted_date is None:
         return
 
     max_days = (predicted_date - df['date'].min()).days
+    if max_days <= 0:
+        st.error("Prediction date is in the past. No future data to plot.")
+        return
 
-    future_days = np.arange(0, max_days).reshape(-1, 1)
+    future_days = np.arange(0, max_days + 1).reshape(-1, 1)
     predicted_kgs_saved = model.predict(future_days)
 
-    future_dates = [df['date'].min() + datetime.timedelta(days=int(day)) for day in future_days]
+    future_dates = [df['date'].min() + datetime.timedelta(days=int(day)) for day in future_days.flatten()]
 
     prediction_df = pd.DataFrame({
         'date': future_dates,
         'predicted_kgs_saved': predicted_kgs_saved.flatten()
     })
 
-    fig = px.line(prediction_df, x='date', y='predicted_kgs_saved', title='Prediction of Weight Loss Over Time', labels={'predicted_kgs_saved': 'Kilograms Saved'})
-    fig.add_scatter(x=df['date'], y=df['actual_kgs_saved'], mode='markers', name='Actual Kg\'s Saved')
+    fig = px.line(prediction_df, x='date', y='predicted_kgs_saved', 
+                  title='Prediction of Weight Loss Over Time', 
+                  labels={'predicted_kgs_saved': 'Kilograms Saved'},
+                  line_dash_sequence=['dash'],
+                  color_discrete_sequence=['green'],
+                  )
+    fig.add_scatter(x=df['date'], y=df['actual_kgs_saved'], mode='markers', name="Actual Kg's Saved", marker=dict(color='blue'))
+    
+    # Add vertical line for the predicted date
+    fig.add_vline(x=predicted_date, line_dash="dot", line_color="red", 
+                  annotation_text="Target Date", annotation_position="top right")
+
+    fig.update_layout(legend=dict(y=0.5, traceorder='reversed', font_size=12))
 
     return fig
 
@@ -263,10 +273,14 @@ def display_tabs(df, target_weight, height_m):
     with tab3:
         st.header("Predictions")
         if not df.empty:
-            predicted_date, model, _ = predict_target_reach(df, target_weight)
+            predicted_date, model = predict_target_reach(df, target_weight)
             if predicted_date and model:
-                st.write(f"Predicted date to reach target weight: {predicted_date.date()}")
-                st.plotly_chart(plot_prediction(df, model, None, target_weight), use_container_width=True)
+                st.write(f"**Predicted date to reach target weight:** {predicted_date.date()}")
+                prediction_plot = plot_prediction(df, model, target_weight)
+                if prediction_plot:
+                    st.plotly_chart(prediction_plot, use_container_width=True)
+                else:
+                    st.write("Prediction plot could not be created.")
             else:
                 st.write("Prediction model could not be created.")
         else:
