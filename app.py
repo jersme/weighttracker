@@ -10,7 +10,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5
 CALORIES_PER_KG = 7000
-VERSION = "1.0.10"  # Updated version number
+VERSION = "1.0.11"  # Updated version number
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -181,6 +181,9 @@ def calculate_calorie_burn_rate_and_maintenance(df):
     if df.empty or df['weight_delta'].isnull().all() or df['calorie_delta'].isnull().all():
         st.error("Insufficient data to calculate calorie burn rate and maintenance calories.")
         return None, None
+
+    # Drop NaN values
+    df = df.dropna(subset=['weight_delta', 'calorie_delta'])
 
     # Prepare the data for regression: weight_delta vs. calorie_delta
     X = df['calorie_delta'].values.reshape(-1, 1)
