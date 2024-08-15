@@ -10,7 +10,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5
 CALORIES_PER_KG = 7000
-VERSION = "1.1.0"  # Updated version number
+VERSION = "1.1.1"  # Updated version number
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -68,9 +68,6 @@ def get_weightracker_data(height_m, target_weight):
             df['theoretical_kgs_saved'] = df['theoretical_kgs_saved'].abs()
             df['cumulative_calories_saved'] = df['cumulative_calories_saved'].abs()
 
-            # Calculate the delta between the current weight and the previous day's weight
-            df['weight_delta'] = df['weight'].diff()
-
             return df
         except Exception as e:
             st.error(f"Error fetching or transforming data: {e}")
@@ -126,6 +123,9 @@ def plot_kgs_saved(df):
 
 def plot_weight_vs_calorie_scatter(df):
     """Plot scatter of weight delta vs calorie saved."""
+    # Calculate the delta between the current weight and the previous day's weight
+    df['weight_delta'] = df['weight'].diff()
+
     fig = px.scatter(df, x='weight_delta', y='calorie_delta', 
                      title='Weight Delta vs Calorie Saved',
                      labels={'weight_delta': 'Delta Weight (kg)', 'calorie_delta': 'Calorie Saved'})
