@@ -10,7 +10,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5
 CALORIES_PER_KG = 7000
-VERSION = "1.0.13"  # Updated version number
+VERSION = "1.0.14"  # Updated version number
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -193,17 +193,17 @@ def calculate_calorie_burn_rate_and_maintenance(df):
     model = LinearRegression()
     model.fit(X, y)
 
-    # Slope and intercept
+    # Slope (calorie_burn_rate) and intercept
     calorie_burn_rate = model.coef_[0][0]
     intercept = model.intercept_[0]
 
-    # Calculate the calorie delta needed to maintain weight (weight_delta = 0)
-    # calorie_delta = -intercept / calorie_burn_rate
-    if calorie_burn_rate != 0:
-        calorie_delta_to_maintain_weight = -intercept / calorie_burn_rate
-    else:
-        st.error("Calorie burn rate is zero, unable to calculate maintenance calories.")
+    # Ensure that the slope is negative, indicating that a calorie surplus leads to weight gain
+    if calorie_burn_rate >= 0:
+        st.error("Unexpected result: the regression suggests a positive or zero calorie burn rate, which is incorrect. Please check your data.")
         return None, None
+
+    # Calculate the calorie delta needed to maintain weight (weight_delta = 0)
+    calorie_delta_to_maintain_weight = -intercept / calorie_burn_rate
 
     # Calculate the daily calories needed to maintain weight
     avg_calories_burned = df['calories_burned'].mean()
