@@ -10,7 +10,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5
 CALORIES_PER_KG = 7000
-VERSION = "1.0.14"  # Updated version number
+VERSION = "1.0.15"  # Updated version number
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -211,6 +211,32 @@ def calculate_calorie_burn_rate_and_maintenance(df):
 
     return calorie_burn_rate, maintenance_calories
 
+def calculate_calorie_maintenance_using_ratios(df):
+    """Calculate the daily calorie intake needed to maintain weight using the ratio method."""
+    if df.empty or df['weight_delta'].isnull().all() or df['calories_consumed'].isnull().all():
+        st.error("Insufficient data to calculate maintenance calories using the ratio method.")
+        return None
+
+    # Drop NaN values
+    df = df.dropna(subset=['weight_delta', 'calories_consumed'])
+
+    # Calculate average weight change and average calorie consumption
+    avg_weight_change = df['weight_delta'].mean()  # Average weight change in kg
+    avg_calories_consumed = df['calories_consumed'].mean()  # Average calories consumed
+
+    # If avg_weight_change is zero, it suggests no change in weight on average, so return average calories consumed
+    if avg_weight_change == 0:
+        st.write("No average weight change observed. Using average calorie consumption as maintenance.")
+        return avg_calories_consumed
+
+    # Calculate the ratio of calories to weight change
+    calories_per_kg = avg_calories_consumed / avg_weight_change
+
+    # To maintain weight (i.e., no weight change), the required caloric intake
+    C_maintain = calories_per_kg * avg_weight_change
+
+    return C_maintain
+
 def plot_prediction(df, model, target_weight):
     """Plot the prediction line along with actual kilograms lost."""
     if model is None:
@@ -369,6 +395,11 @@ def display_tabs(df, target_weight, height_m):
             if calorie_burn_rate is not None and maintenance_calories is not None:
                 st.subheader(f"Calorie Burn Rate: {calorie_burn_rate:.6f} kg/cal")
                 st.subheader(f"Daily Calories to Maintain Weight: {maintenance_calories:.0f} cal")
+
+            # Calculate maintenance calories using the ratio method
+            maintenance_calories_ratio = calculate_calorie_maintenance_using_ratios(df)
+            if maintenance_calories_ratio is not None:
+                st.subheader(f"Daily Calories to Maintain Weight (Ratio Method): {maintenance_calories_ratio:.0f} cal")
         else:
             st.write("No data available for predictions.")
 
