@@ -156,11 +156,9 @@ def predict_target_reach(df, target_weight):
         st.error("Model predicts that the target weight has already been achieved.")
         return None, None
 
-    # Use pd.Timedelta to add days to the minimum date
     predicted_date = df['date'].min() + pd.Timedelta(days=int(predicted_days))
 
     return predicted_date, model
-
 
 def plot_prediction(df, model, target_weight):
     """Plot the prediction line along with actual kilograms lost."""
@@ -180,7 +178,7 @@ def plot_prediction(df, model, target_weight):
     future_days = np.arange(0, max_days + 1).reshape(-1, 1)
     predicted_kgs_saved = model.predict(future_days)
 
-    future_dates = [df['date'].min() + datetime.timedelta(days=int(day)) for day in future_days.flatten()]
+    future_dates = [df['date'].min() + pd.Timedelta(days=int(day)) for day in future_days.flatten()]
 
     prediction_df = pd.DataFrame({
         'date': future_dates,
