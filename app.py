@@ -10,7 +10,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5
 CALORIES_PER_KG = 7000
-VERSION = "1.0.7"  # Updated version number
+VERSION = "1.1.0"  # Updated version number
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -40,7 +40,7 @@ def get_weightracker_data(height_m, target_weight):
             df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
 
             # Sort the dataframe by date to correctly calculate cumulative values
-            df is df.sort_values(by='date')
+            df = df.sort_values(by='date')
 
             # Calculate the daily calorie delta
             df['calorie_delta'] = df['calories_consumed'] - df['calories_burned']
@@ -67,6 +67,9 @@ def get_weightracker_data(height_m, target_weight):
             # Ensure positive values for theoretical calculations
             df['theoretical_kgs_saved'] = df['theoretical_kgs_saved'].abs()
             df['cumulative_calories_saved'] = df['cumulative_calories_saved'].abs()
+
+            # Calculate the delta between the current weight and the previous day's weight
+            df['weight_delta'] = df['weight'].diff()
 
             return df
         except Exception as e:
@@ -119,6 +122,14 @@ def plot_kgs_saved(df):
                   markers=True, line_shape='linear')
     fig.update_layout(xaxis_title='Date', yaxis_title='Kilograms Saved',
                       legend_title_text='Type of Savings')
+    return fig
+
+def plot_weight_vs_calorie_scatter(df):
+    """Plot scatter of weight delta vs calorie saved."""
+    fig = px.scatter(df, x='weight_delta', y='calorie_delta', 
+                     title='Weight Delta vs Calorie Saved',
+                     labels={'weight_delta': 'Delta Weight (kg)', 'calorie_delta': 'Calorie Saved'})
+    fig.update_layout(xaxis_title='Delta Weight (kg)', yaxis_title='Calories Saved')
     return fig
 
 def predict_target_reach(df, target_weight):
@@ -281,6 +292,7 @@ def display_tabs(df, target_weight, height_m):
                 st.plotly_chart(plot_bmi_over_time(df, height_m, target_weight), use_container_width=True)
 
             st.plotly_chart(plot_kgs_saved(df), use_container_width=True)
+            st.plotly_chart(plot_weight_vs_calorie_scatter(df), use_container_width=True)  # Added scatter plot
         else:
             st.write("No data available for analysis.")
 
