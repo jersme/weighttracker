@@ -10,7 +10,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5
 CALORIES_PER_KG = 7000
-VERSION = "1.1.1"  # Updated version number
+VERSION = "1.1.3"  # Updated version number
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -132,6 +132,12 @@ def plot_weight_vs_calorie_scatter(df):
     fig.update_layout(xaxis_title='Delta Weight (kg)', yaxis_title='Calories Saved')
     return fig
 
+def calculate_correlation(df):
+    """Calculate and return the correlation between calories and weight loss."""
+    df['weight_delta'] = df['weight'].diff()
+    correlation = df[['weight_delta', 'calorie_delta']].corr().iloc[0, 1]
+    return correlation
+
 def predict_target_reach(df, target_weight):
     """Predict the date when the target weight will be reached using linear regression."""
     if df.empty:
@@ -161,7 +167,7 @@ def predict_target_reach(df, target_weight):
 
     # Predict the day at which the target weight will be reached
     target_kgs_saved = initial_weight - target_weight
-    predicted_days = (target_kgs_saved - model.intercept_[0]) / model.coef_[0][0]
+    predicted_days = (target_kgs_saved - model.intercept()[0]) / model.coef_[0][0]
     
     if predicted_days < 0:
         st.error("Model predicts that the target weight has already been achieved.")
@@ -293,6 +299,10 @@ def display_tabs(df, target_weight, height_m):
 
             st.plotly_chart(plot_kgs_saved(df), use_container_width=True)
             st.plotly_chart(plot_weight_vs_calorie_scatter(df), use_container_width=True)  # Added scatter plot
+            
+            # Calculate and display the correlation
+            correlation = calculate_correlation(df)
+            st.subheader(f"Correlation between daily weight change and calories saved: {correlation:.2f}")
         else:
             st.write("No data available for analysis.")
 
