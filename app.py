@@ -171,6 +171,9 @@ def plot_prediction(df, model, target_weight):
     if predicted_date is None:
         return
 
+    # Convert predicted_date to a Python datetime object if it's a pandas Timestamp
+    predicted_date = predicted_date.to_pydatetime()
+
     max_days = (predicted_date - df['date'].min()).days
     if max_days <= 0:
         st.error("Prediction date is in the past. No future data to plot.")
