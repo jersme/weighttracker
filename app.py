@@ -40,7 +40,7 @@ def get_weightracker_data(height_m, target_weight):
             df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
 
             # Sort the dataframe by date to correctly calculate cumulative values
-            df = df.sort_values(by='date')
+            df is df.sort_values(by='date')
 
             # Calculate the daily calorie delta
             df['calorie_delta'] = df['calories_consumed'] - df['calories_burned']
@@ -156,8 +156,8 @@ def predict_target_reach(df, target_weight):
         st.error("Model predicts that the target weight has already been achieved.")
         return None, None
 
-    # Convert predicted days into a Timedelta and add to the min date
-    predicted_date = df['date'].min() + pd.Timedelta(days=int(predicted_days))
+    # Convert predicted days into a DateOffset and add to the min date
+    predicted_date = df['date'].min() + pd.DateOffset(days=int(predicted_days))
 
     return predicted_date, model
 
