@@ -10,7 +10,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5
 CALORIES_PER_KG = 7000
-VERSION = "1.1.9"  # Updated version number
+VERSION = "1.0.10"  # Updated version number
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database with SSL."""
@@ -68,6 +68,9 @@ def get_weightracker_data(height_m, target_weight):
             df['theoretical_kgs_saved'] = df['theoretical_kgs_saved'].abs()
             df['cumulative_calories_saved'] = df['cumulative_calories_saved'].abs()
 
+            # Calculate the delta between the current weight and the previous day's weight
+            df['weight_delta'] = df['weight'].diff()
+
             return df
         except Exception as e:
             st.error(f"Error fetching or transforming data: {e}")
@@ -88,7 +91,6 @@ def plot_weight_over_time(df, target_weight):
     fig.add_hline(y=target_weight, line_dash="dash", line_color="green", annotation_text="Target Weight", annotation_position="bottom right")
     
     return fig
-
 
 def plot_calorie_delta_over_time(df):
     """Plot calorie delta over time using Plotly."""
@@ -123,9 +125,6 @@ def plot_kgs_saved(df):
 
 def plot_weight_vs_calorie_scatter(df):
     """Plot scatter of weight delta vs calorie saved."""
-    # Calculate the delta between the current weight and the previous day's weight
-    df['weight_delta'] = df['weight'].diff()
-
     fig = px.scatter(df, x='weight_delta', y='calorie_delta', 
                      title='Weight Delta vs Calorie Saved',
                      labels={'weight_delta': 'Delta Weight (kg)', 'calorie_delta': 'Calorie Saved'})
@@ -134,7 +133,6 @@ def plot_weight_vs_calorie_scatter(df):
 
 def calculate_correlation(df):
     """Calculate and return the correlation between calories and weight loss."""
-    df['weight_delta'] = df['weight'].diff()
     correlation = df[['weight_delta', 'calorie_delta']].corr().iloc[0, 1]
     return correlation
 
@@ -177,6 +175,28 @@ def predict_target_reach(df, target_weight):
     predicted_date = df['date'].min() + pd.DateOffset(days=int(predicted_days))
 
     return predicted_date, model
+
+def calculate_calorie_burn_rate_and_maintenance(df):
+    """Calculate the calorie burn rate and the daily calorie intake needed to maintain weight."""
+    if df.empty or df['weight_delta'].isnull().all() or df['calorie_delta'].isnull().all():
+        st.error("Insufficient data to calculate calorie burn rate and maintenance calories.")
+        return None, None
+
+    # Prepare the data for regression: weight_delta vs. calorie_delta
+    X = df['calorie_delta'].values.reshape(-1, 1)
+    y = df['weight_delta'].values.reshape(-1, 1)
+
+    # Perform linear regression
+    model = LinearRegression()
+    model.fit(X, y)
+
+    # Calorie burn rate (slope of the regression line)
+    calorie_burn_rate = model.coef_[0][0]
+
+    # Calculate the daily calorie intake needed to maintain weight (weight_delta = 0)
+    maintenance_calories = -model.intercept_[0] / calorie_burn_rate
+
+    return calorie_burn_rate, maintenance_calories
 
 def plot_prediction(df, model, target_weight):
     """Plot the prediction line along with actual kilograms lost."""
@@ -330,6 +350,12 @@ def display_tabs(df, target_weight, height_m):
                     st.write("Prediction plot could not be created.")
             else:
                 st.write("Prediction model could not be created.")
+            
+            # Calculate and display the calorie burn rate and maintenance calories
+            calorie_burn_rate, maintenance_calories = calculate_calorie_burn_rate_and_maintenance(df)
+            if calorie_burn_rate is not None and maintenance_calories is not None:
+                st.subheader(f"Calorie Burn Rate: {calorie_burn_rate:.6f} kg/cal")
+                st.subheader(f"Daily Calories to Maintain Weight: {maintenance_calories:.0f} cal")
         else:
             st.write("No data available for predictions.")
 
