@@ -8,17 +8,12 @@ from sklearn.linear_model import LinearRegression
 import numpy as np
 
 # Constants
-MIN_REQUIRED_POINTS = 5  # Minimum data points required for linear regression to make predictions
-CALORIES_PER_KG = 7000  # Caloric equivalent of 1 kg of weight loss
-VERSION = "1.0.16"  # Current version of the application
+MIN_REQUIRED_POINTS = 5
+CALORIES_PER_KG = 7000
+VERSION = "1.0.15"  # Updated version number
 
 def connect_to_db():
-    """
-    Establish a connection to the PostgreSQL database using SSL.
-
-    Returns:
-        conn (psycopg2.connection): Connection object if successful, None if an error occurs.
-    """
+    """Establish a connection to the PostgreSQL database with SSL."""
     try:
         conn = psycopg2.connect(
             host=st.secrets["DB_HOST"],
@@ -26,7 +21,7 @@ def connect_to_db():
             dbname=st.secrets["DB_NAME"],
             user=st.secrets["DB_USER"],
             password=st.secrets["DB_PASS"],
-            sslmode='require'  # Enforce SSL for secure connection
+            sslmode='require'  # Ensure SSL is used for the connection
         )
         return conn
     except Exception as e:
@@ -34,48 +29,38 @@ def connect_to_db():
         return None
 
 def get_weightracker_data(height_m, target_weight):
-    """
-    Fetch data from the 'weightracker' table and apply necessary transformations.
-
-    Args:
-        height_m (float): User's height in meters.
-        target_weight (float): User's target weight in kilograms.
-
-    Returns:
-        df (pd.DataFrame): Transformed DataFrame with additional calculated columns.
-    """
+    """Fetch data from the weightracker table and transform it."""
     conn = connect_to_db()
     if conn is not None:
         try:
-            # Fetch all data from the weightracker table
             query = "SELECT * FROM weightracker;"
             df = pd.read_sql(query, conn)
             
-            # Convert the 'date' column to datetime format for time-based calculations
+            # Transform the 'date' column to a datetime format
             df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
 
-            # Sort the dataframe by date to ensure correct order for cumulative calculations
+            # Sort the dataframe by date to correctly calculate cumulative values
             df = df.sort_values(by='date')
 
-            # Calculate daily calorie delta (consumed - burned)
+            # Calculate the daily calorie delta
             df['calorie_delta'] = df['calories_consumed'] - df['calories_burned']
 
-            # Calculate BMI based on user's height
+            # Calculate BMI using the user's height
             df['BMI'] = df['weight'] / (height_m ** 2)
 
-            # Calculate kilograms remaining to reach the target weight
+            # Calculate KGs to go to target weight
             df["kgs_to_target"] = df["weight"] - target_weight
 
-            # Calculate calories needed to save to reach target weight
+            # Calculate calories to save to reach target weight
             df["calories_to_save"] = df["kgs_to_target"] * CALORIES_PER_KG
 
-            # Calculate cumulative calories saved over time
-            df['cumulative_calories_saved'] = -df['calorie_delta'].cumsum()  # Inverted to show savings as positive
+            # Calculate cumulative calories saved
+            df['cumulative_calories_saved'] = -df['calorie_delta'].cumsum()  # Inverted to reflect savings positively
 
-            # Calculate theoretical kilograms saved based on cumulative calorie savings
+            # Calculate theoretical kilograms saved
             df['theoretical_kgs_saved'] = df['cumulative_calories_saved'] / CALORIES_PER_KG
 
-            # Calculate actual kilograms saved compared to initial weight
+            # Calculate actual kilograms saved
             initial_weight = df['weight'].iloc[0]
             df['actual_kgs_saved'] = initial_weight - df['weight']
 
@@ -83,96 +68,54 @@ def get_weightracker_data(height_m, target_weight):
             df['theoretical_kgs_saved'] = df['theoretical_kgs_saved'].abs()
             df['cumulative_calories_saved'] = df['cumulative_calories_saved'].abs()
 
-            # Calculate daily weight change (delta)
+            # Calculate the delta between the current weight and the previous day's weight
             df['weight_delta'] = df['weight'].diff()
 
             return df
         except Exception as e:
             st.error(f"Error fetching or transforming data: {e}")
-            return pd.DataFrame()  # Return empty DataFrame in case of an error
+            return pd.DataFrame()  # Return empty DataFrame in case of error
         finally:
             conn.close()
 
 def plot_weight_over_time(df, target_weight):
-    """
-    Create a line plot of weight changes over time.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing weight data.
-        target_weight (float): User's target weight in kilograms.
-
-    Returns:
-        fig (plotly.graph_objs._figure.Figure): Plotly figure object with the weight over time plot.
-    """
-    # Create a line plot with date on the x-axis and weight on the y-axis
+    """Plot weight changes over time using Plotly."""
     fig = px.line(df, x='date', y='weight', title='Weight Over Time', markers=True)
     fig.update_layout(
         xaxis_title='Date', 
         yaxis_title='Weight (kg)',
-        yaxis=dict(range=[0, df['weight'].max() * 1.1])  # Set y-axis range to start from 0 and extend slightly above max weight
+        yaxis=dict(range=[0, df['weight'].max() * 1.1])  # Set the y-axis to start at 0 and go slightly above the max weight
     )
     
-    # Add a horizontal line indicating the target weight
+    # Add a horizontal line for the target weight
     fig.add_hline(y=target_weight, line_dash="dash", line_color="green", annotation_text="Target Weight", annotation_position="bottom right")
     
     return fig
 
 def plot_calorie_delta_over_time(df):
-    """
-    Create a bar plot of daily calorie delta over time.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing calorie data.
-
-    Returns:
-        fig (plotly.graph_objs._figure.Figure): Plotly figure object with the calorie delta over time plot.
-    """
-    # Create a bar plot with date on the x-axis and calorie delta on the y-axis
+    """Plot calorie delta over time using Plotly."""
     fig = px.bar(df, x='date', y='calorie_delta', title='Calorie Delta Over Time', color='calorie_delta', color_continuous_scale='RdBu')
     fig.update_layout(xaxis_title='Date', yaxis_title='Calorie Delta', showlegend=False)
-    
-    # Add a horizontal line at y=0 to indicate the balance point
     fig.add_hline(y=0, line_dash="dash", line_color="red")
     return fig
 
 def plot_bmi_over_time(df, height_m, target_weight):
-    """
-    Create a line plot of BMI changes over time.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing BMI data.
-        height_m (float): User's height in meters.
-        target_weight (float): User's target weight in kilograms.
-
-    Returns:
-        fig (plotly.graph_objs._figure.Figure): Plotly figure object with the BMI over time plot.
-    """
-    # Calculate the target BMI based on user's height and target weight
+    """Plot BMI changes over time using Plotly."""
     target_bmi = target_weight / (height_m ** 2)
 
-    # Create a color column to differentiate BMI values above and below 25
+    # Create a color column to change the color of the line based on BMI value
     df['bmi_color'] = np.where(df['BMI'] > 25, 'red', 'blue')
 
-    # Create a line plot with date on the x-axis and BMI on the y-axis
     fig = px.line(df, x='date', y='BMI', title='BMI Over Time', markers=True, line_shape='linear', color='bmi_color', color_discrete_map={"red": "red", "blue": "blue"})
     fig.update_layout(xaxis_title='Date', yaxis_title='BMI')
     
-    # Add a horizontal line indicating the target BMI
+    # Add a horizontal line for the target BMI
     fig.add_hline(y=target_bmi, line_dash="dash", line_color="green", annotation_text="Target BMI", annotation_position="bottom right")
 
     return fig
 
 def plot_kgs_saved(df):
-    """
-    Create a line plot comparing theoretical versus actual kilograms saved over time.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing weight loss data.
-
-    Returns:
-        fig (plotly.graph_objs._figure.Figure): Plotly figure object with the theoretical vs actual kgs saved plot.
-    """
-    # Create a line plot comparing theoretical and actual kilograms saved
+    """Plot theoretical vs actual kilograms saved over time using Plotly."""
     fig = px.line(df, x='date', y=['theoretical_kgs_saved', 'actual_kgs_saved'], 
                   title='Theoretical vs Actual Kgs Saved Over Time', 
                   markers=True, line_shape='linear')
@@ -181,16 +124,7 @@ def plot_kgs_saved(df):
     return fig
 
 def plot_weight_vs_calorie_scatter(df):
-    """
-    Create a scatter plot of weight delta versus calorie delta.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing weight and calorie data.
-
-    Returns:
-        fig (plotly.graph_objs._figure.Figure): Plotly figure object with the scatter plot of weight delta vs calorie delta.
-    """
-    # Create a scatter plot with weight delta on the x-axis and calorie delta on the y-axis
+    """Plot scatter of weight delta vs calorie saved."""
     fig = px.scatter(df, x='weight_delta', y='calorie_delta', 
                      title='Weight Delta vs Calorie Saved',
                      labels={'weight_delta': 'Delta Weight (kg)', 'calorie_delta': 'Calorie Saved'})
@@ -198,60 +132,38 @@ def plot_weight_vs_calorie_scatter(df):
     return fig
 
 def calculate_correlation(df):
-    """
-    Calculate the correlation between daily weight change and calorie delta.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing weight and calorie data.
-
-    Returns:
-        correlation (float): Correlation coefficient between weight delta and calorie delta.
-    """
+    """Calculate and return the correlation between calories and weight loss."""
     correlation = df[['weight_delta', 'calorie_delta']].corr().iloc[0, 1]
     return correlation
 
 def predict_target_reach(df, target_weight):
-    """
-    Predict the date when the target weight will be reached using linear regression.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing weight loss data.
-        target_weight (float): User's target weight in kilograms.
-
-    Returns:
-        predicted_date (datetime.datetime): Predicted date when target weight will be reached.
-        model (sklearn.linear_model.LinearRegression): Fitted linear regression model.
-    """
+    """Predict the date when the target weight will be reached using linear regression."""
     if df.empty:
         st.error("No data available to perform prediction.")
         return None, None
 
-    # Calculate actual kilograms saved from initial weight
     initial_weight = df['weight'].iloc[0]
     df['actual_kgs_saved'] = initial_weight - df['weight']
-
-    # Calculate the number of days since the start
     df['days'] = (df['date'] - df['date'].min()).dt.days
 
     if df['days'].empty or df['actual_kgs_saved'].empty:
         st.error("Insufficient data for prediction.")
         return None, None
 
-    # Prepare the data for linear regression
+    # Prepare the data for regression
     X = df['days'].values.reshape(-1, 1)
     y = df['actual_kgs_saved'].values.reshape(-1, 1)
 
-    # Ensure there are enough data points to perform regression
     if X.shape[0] < MIN_REQUIRED_POINTS or y.shape[0] < MIN_REQUIRED_POINTS:
         st.error(f"Insufficient data points for regression. At least {MIN_REQUIRED_POINTS} points are required. "
                  f"Current points: {X.shape[0]}. Additional points needed: {MIN_REQUIRED_POINTS - X.shape[0]}")
         return None, None
 
-    # Fit the linear regression model
+    # Perform linear regression
     model = LinearRegression()
     model.fit(X, y)
 
-    # Calculate the day at which the target weight will be reached
+    # Predict the day at which the target weight will be reached
     target_kgs_saved = initial_weight - target_weight
     predicted_days = (target_kgs_saved - model.intercept_[0]) / model.coef_[0][0]
     
@@ -259,38 +171,29 @@ def predict_target_reach(df, target_weight):
         st.error("Model predicts that the target weight has already been achieved.")
         return None, None
 
-    # Convert the predicted days into a date
+    # Convert predicted days into a DateOffset and add to the min date
     predicted_date = df['date'].min() + pd.DateOffset(days=int(predicted_days))
 
     return predicted_date, model
 
 def calculate_calorie_burn_rate_and_maintenance(df):
-    """
-    Calculate the calorie burn rate and daily calorie intake needed to maintain weight.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing weight and calorie data.
-
-    Returns:
-        calorie_burn_rate (float): The slope of the regression line, indicating the rate of calorie burn.
-        maintenance_calories (float): The daily calorie intake needed to maintain current weight.
-    """
+    """Calculate the calorie burn rate and the daily calorie intake needed to maintain weight."""
     if df.empty or df['weight_delta'].isnull().all() or df['calorie_delta'].isnull().all():
         st.error("Insufficient data to calculate calorie burn rate and maintenance calories.")
         return None, None
 
-    # Drop rows with NaN values in weight_delta or calorie_delta
+    # Drop NaN values
     df = df.dropna(subset=['weight_delta', 'calorie_delta'])
 
     # Prepare the data for regression: calorie_delta vs. weight_delta
     X = df['calorie_delta'].values.reshape(-1, 1)
     y = df['weight_delta'].values.reshape(-1, 1)
 
-    # Fit the linear regression model
+    # Perform linear regression
     model = LinearRegression()
     model.fit(X, y)
 
-    # Calculate the slope (calorie_burn_rate) and intercept of the regression line
+    # Slope (calorie_burn_rate) and intercept
     calorie_burn_rate = model.coef_[0][0]
     intercept = model.intercept_[0]
 
@@ -309,27 +212,19 @@ def calculate_calorie_burn_rate_and_maintenance(df):
     return calorie_burn_rate, maintenance_calories
 
 def calculate_calorie_maintenance_using_ratios(df):
-    """
-    Calculate the daily calorie intake needed to maintain weight using the ratio method.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing weight and calorie data.
-
-    Returns:
-        C_maintain (float): The daily calorie intake needed to maintain current weight.
-    """
+    """Calculate the daily calorie intake needed to maintain weight using the ratio method."""
     if df.empty or df['weight_delta'].isnull().all() or df['calories_consumed'].isnull().all():
         st.error("Insufficient data to calculate maintenance calories using the ratio method.")
         return None
 
-    # Drop rows with NaN values in weight_delta or calories_consumed
+    # Drop NaN values
     df = df.dropna(subset=['weight_delta', 'calories_consumed'])
 
-    # Calculate the average weight change and average calorie consumption
+    # Calculate average weight change and average calorie consumption
     avg_weight_change = df['weight_delta'].mean()  # Average weight change in kg
     avg_calories_consumed = df['calories_consumed'].mean()  # Average calories consumed
 
-    # If the average weight change is zero, use the average calorie consumption as the maintenance level
+    # If avg_weight_change is zero, it suggests no change in weight on average, so return average calories consumed
     if avg_weight_change == 0:
         st.write("No average weight change observed. Using average calorie consumption as maintenance.")
         return avg_calories_consumed
@@ -343,21 +238,10 @@ def calculate_calorie_maintenance_using_ratios(df):
     return C_maintain
 
 def plot_prediction(df, model, target_weight):
-    """
-    Plot the prediction line along with actual kilograms lost over time.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing weight loss data.
-        model (sklearn.linear_model.LinearRegression): Fitted linear regression model.
-        target_weight (float): User's target weight in kilograms.
-
-    Returns:
-        fig (plotly.graph_objs._figure.Figure): Plotly figure object with the prediction plot.
-    """
+    """Plot the prediction line along with actual kilograms lost."""
     if model is None:
         return
 
-    # Calculate initial weight and predicted date
     initial_weight = df['weight'].iloc[0]
     predicted_date, _ = predict_target_reach(df, target_weight)
     if predicted_date is None:
@@ -376,16 +260,13 @@ def plot_prediction(df, model, target_weight):
     future_days = np.arange(0, max_days + 1)
     future_dates = [df['date'].min() + pd.Timedelta(days=int(day)) for day in future_days]
 
-    # Predict kilograms saved for future dates
     predicted_kgs_saved = model.predict(future_days.reshape(-1, 1))
 
-    # Create a DataFrame for plotting the prediction
     prediction_df = pd.DataFrame({
         'date': future_dates,
         'predicted_kgs_saved': predicted_kgs_saved.flatten()
     })
 
-    # Create a line plot with the prediction and actual data
     fig = px.line(prediction_df, x='date', y='predicted_kgs_saved', 
                   title='Prediction of Weight Loss Over Time', 
                   labels={'predicted_kgs_saved': 'Kilograms Saved'},
@@ -394,7 +275,7 @@ def plot_prediction(df, model, target_weight):
                   )
     fig.add_scatter(x=df['date'], y=df['actual_kgs_saved'], mode='markers', name="Actual Kg's Saved", marker=dict(color='blue'))
     
-    # Add a vertical line indicating the predicted target date
+    # Add a vertical line using add_shape instead of add_vline
     fig.add_shape(
         type="line",
         x0=predicted_date_str,
@@ -406,7 +287,7 @@ def plot_prediction(df, model, target_weight):
         line=dict(color="red", width=2, dash="dot"),
     )
 
-    # Add an annotation for the target date
+    # Add annotation for the target date
     fig.add_annotation(
         x=predicted_date_str,
         y=max(prediction_df['predicted_kgs_saved']),
@@ -422,14 +303,8 @@ def plot_prediction(df, model, target_weight):
     return fig
 
 def display_metrics(df, target_weight):
-    """
-    Display key metrics based on the weight tracker data.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing weight tracker data.
-        target_weight (float): User's target weight in kilograms.
-    """
-    # Calculate metrics based on the current data
+    """Display key metrics based on the weight tracker data."""
+    # Calculate metrics
     kgs_lost_since_start = df['actual_kgs_saved'].iloc[-1]
     kgs_to_go = df['kgs_to_target'].iloc[-1]
     calories_saved = df['cumulative_calories_saved'].iloc[-1]
@@ -440,13 +315,13 @@ def display_metrics(df, target_weight):
     start_of_week = today - datetime.timedelta(days=today.weekday())
     current_week_data = df[df['date'].dt.date >= start_of_week]
 
-    # Calculate average values for the current week
+    # Average values for the current week
     avg_kgs_lost_this_week = current_week_data['actual_kgs_saved'].mean() if not current_week_data.empty else 0
     avg_kgs_to_go_this_week = current_week_data['kgs_to_target'].mean() if not current_week_data.empty else 0
     avg_calories_saved_this_week = current_week_data['cumulative_calories_saved'].mean() if not current_week_data.empty else 0
     avg_calories_to_go_this_week = current_week_data['calories_to_save'].mean() if not current_week_data.empty else 0
 
-    # Display the metrics in columns
+    # Display metrics
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Kg's Lost Since Start", f"{kgs_lost_since_start:.2f} kg", delta=f"{avg_kgs_lost_this_week:.2f} kg")
@@ -458,22 +333,13 @@ def display_metrics(df, target_weight):
         st.metric("Calories to Go", f"{calories_to_go:.0f}", delta=f"{avg_calories_to_go_this_week:.0f}")
 
 def display_tabs(df, target_weight, height_m):
-    """
-    Display tabs for analysis, data, and predictions.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing weight tracker data.
-        target_weight (float): User's target weight in kilograms.
-        height_m (float): User's height in meters.
-    """
-    # Create tabs for different sections of the app
+    """Display tabs for analysis, data, and predictions."""
     tab1, tab2, tab3 = st.tabs(["Analysis", "Data", "Predictions"])
 
     with tab1:
         st.header("Analysis")
         if not df.empty:
             st.subheader("Summary Statistics")
-            # Display summary statistics in an interactive grid
             summary_df = df.describe().reset_index()
             gb = GridOptionsBuilder.from_dataframe(summary_df)
             gb.configure_pagination(paginationAutoPageSize=True)
@@ -493,7 +359,7 @@ def display_tabs(df, target_weight, height_m):
             st.plotly_chart(plot_kgs_saved(df), use_container_width=True)
             st.plotly_chart(plot_weight_vs_calorie_scatter(df), use_container_width=True)  # Added scatter plot
             
-            # Calculate and display the correlation between weight delta and calorie delta
+            # Calculate and display the correlation
             correlation = calculate_correlation(df)
             st.subheader(f"Correlation between daily weight change and calories saved: {correlation:.2f}")
         else:
@@ -502,7 +368,6 @@ def display_tabs(df, target_weight, height_m):
     with tab2:
         st.header("Data")
         if not df.empty:
-            # Display the full dataset in an interactive grid
             gb = GridOptionsBuilder.from_dataframe(df)
             gb.configure_pagination(paginationAutoPageSize=True)
             gb.configure_side_bar()
@@ -514,7 +379,6 @@ def display_tabs(df, target_weight, height_m):
     with tab3:
         st.header("Predictions")
         if not df.empty:
-            # Perform weight prediction and display the results
             predicted_date, model = predict_target_reach(df, target_weight)
             if predicted_date and model:
                 st.write(f"**Predicted date to reach target weight:** {predicted_date.date()}")
@@ -540,12 +404,7 @@ def display_tabs(df, target_weight, height_m):
             st.write("No data available for predictions.")
 
 def main():
-    """
-    Main function to run the Streamlit app.
-
-    This function initializes the app, fetches and processes data, 
-    and displays various analyses and predictions related to weight tracking.
-    """
+    """Main function to run the Streamlit app."""
     st.set_page_config(layout="wide")
     st.title("Weight Tracker")
 
@@ -554,18 +413,17 @@ def main():
     target_weight = st.sidebar.number_input("Goal Weight (kg)", min_value=0.0, value=75.0, step=0.1)
     height_m = st.sidebar.number_input("Height (m)", min_value=1.0, value=1.83, step=0.01)
 
-    # Display version information in the sidebar
+    # Display version information
     st.sidebar.write(f"Version: {VERSION}")
 
     # Button to refresh data
     if st.sidebar.button("Refresh Data"):
         st.session_state.refresh = True
 
-    # Initialize session state for refreshing data
+    # Initialize session state for refreshing
     if 'refresh' not in st.session_state:
         st.session_state.refresh = True
 
-    # Fetch and process data if the refresh flag is set
     if st.session_state.refresh:
         df = get_weightracker_data(height_m, target_weight)
         st.session_state.df = df
@@ -573,7 +431,6 @@ def main():
     else:
         df = st.session_state.df
 
-    # Display metrics, analysis, data, and predictions based on the fetched data
     if not df.empty:
         display_metrics(df, target_weight)
         display_tabs(df, target_weight, height_m)
