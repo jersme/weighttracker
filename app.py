@@ -10,7 +10,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5  # Minimum data points required for linear regression to make predictions
 CALORIES_PER_KG = 7000  # Caloric equivalent of 1 kg of weight loss
-VERSION = "1.0.16"  # Current version of the application
+VERSION = "1.0.17"  # Current version of the application
 
 def connect_to_db():
     """
@@ -137,6 +137,88 @@ def display_metrics(df, target_weight):
         st.metric("Calories Saved", f"{calories_saved:.0f}", delta=f"{avg_calories_saved_this_week:.0f}")
     with col4:
         st.metric("Calories to Go", f"{calories_to_go:.0f}", delta=f"{avg_calories_to_go_this_week:.0f}")
+
+def display_tabs(df, target_weight, height_m):
+    """
+    Display tabs for analysis, data, and predictions.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing weight tracker data.
+        target_weight (float): User's target weight in kilograms.
+        height_m (float): User's height in meters.
+    """
+    # Create tabs for different sections of the app
+    tab1, tab2, tab3 = st.tabs(["Analysis", "Data", "Predictions"])
+
+    with tab1:
+        st.header("Analysis")
+        if not df.empty:
+            st.subheader("Summary Statistics")
+            # Display summary statistics in an interactive grid
+            summary_df = df.describe().reset_index()
+            gb = GridOptionsBuilder.from_dataframe(summary_df)
+            gb.configure_pagination(paginationAutoPageSize=True)
+            gb.configure_side_bar()
+            grid_options = gb.build()
+            AgGrid(summary_df, gridOptions=grid_options, height=300, width='100%')
+
+            st.subheader("Visualizations")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.plotly_chart(plot_weight_over_time(df, target_weight), use_container_width=True)
+            with col2:
+                st.plotly_chart(plot_calorie_delta_over_time(df), use_container_width=True)
+            with col3:
+                st.plotly_chart(plot_bmi_over_time(df, height_m, target_weight), use_container_width=True)
+
+            st.plotly_chart(plot_kgs_saved(df), use_container_width=True)
+            st.plotly_chart(plot_weight_vs_calorie_scatter(df), use_container_width=True)  # Added scatter plot
+            
+            # Calculate and display the correlation between weight delta and calorie delta
+            correlation = calculate_correlation(df)
+            st.subheader(f"Correlation between daily weight change and calories saved: {correlation:.2f}")
+        else:
+            st.write("No data available for analysis.")
+
+    with tab2:
+        st.header("Data")
+        if not df.empty:
+            # Display the full dataset in an interactive grid
+            gb = GridOptionsBuilder.from_dataframe(df)
+            gb.configure_pagination(paginationAutoPageSize=True)
+            gb.configure_side_bar()
+            grid_options = gb.build()
+            AgGrid(df, gridOptions=grid_options, height=400, width='100%')
+        else:
+            st.write("No data available.")
+
+    with tab3:
+        st.header("Predictions")
+        if not df.empty:
+            # Perform weight prediction and display the results
+            predicted_date, model = predict_target_reach(df, target_weight)
+            if predicted_date and model:
+                st.write(f"**Predicted date to reach target weight:** {predicted_date.date()}")
+                prediction_plot = plot_prediction(df, model, target_weight)
+                if prediction_plot:
+                    st.plotly_chart(prediction_plot, use_container_width=True)
+                else:
+                    st.write("Prediction plot could not be created.")
+            else:
+                st.write("Prediction model could not be created.")
+            
+            # Calculate and display the calorie burn rate and maintenance calories
+            calorie_burn_rate, maintenance_calories = calculate_calorie_burn_rate_and_maintenance(df)
+            if calorie_burn_rate is not None and maintenance_calories is not None:
+                st.subheader(f"Calorie Burn Rate: {calorie_burn_rate:.6f} kg/cal")
+                st.subheader(f"Daily Calories to Maintain Weight: {maintenance_calories:.0f} cal")
+
+            # Calculate maintenance calories using the ratio method
+            maintenance_calories_ratio = calculate_calorie_maintenance_using_ratios(df)
+            if maintenance_calories_ratio is not None:
+                st.subheader(f"Daily Calories to Maintain Weight (Ratio Method): {maintenance_calories_ratio:.0f} cal")
+        else:
+            st.write("No data available for predictions.")
 
 def main():
     """
