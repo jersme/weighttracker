@@ -158,7 +158,11 @@ def plot_weight_vs_calorie_scatter_with_regression(df, model):
         )
     )
     
-    fig.update_layout(xaxis_title='Calories Consumed', yaxis_title='Delta Weight (kg)')
+    # Update y-axis to range from -1 to 1
+    fig.update_layout(xaxis_title='Calories Consumed', 
+                      yaxis_title='Delta Weight (kg)',
+                      yaxis=dict(range=[-1, 1]))  # Extrapolate y-axis from -1 to 1
+    
     return fig
 
 def plot_weight_over_time(df, target_weight):
