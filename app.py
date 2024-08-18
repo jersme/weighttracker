@@ -11,7 +11,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5  # Minimum data points required for linear regression to make predictions
 CALORIES_PER_KG = 7000  # Caloric equivalent of 1 kg of weight loss
-VERSION = "1.1.6"  # Current version of the application
+VERSION = "1.1.7"  # Current version of the application
 
 def connect_to_db():
     """
@@ -143,15 +143,25 @@ def plot_weight_vs_calorie_scatter_with_regression(df, model):
                      title=f'Weight Delta vs Calories Consumed (Rolling Average)',
                      labels={'calories_consumed': 'Calories Consumed', 'weight_delta': 'Delta Weight (kg)'})
 
-    # Generate regression line points
-    X_plot = np.linspace(df['calories_consumed'].min(), df['calories_consumed'].max(), 100).reshape(-1, 1)
+    # Extend X_plot to ensure the regression line crosses -1 and 1 on the y-axis
+    x_min = df['calories_consumed'].min()
+    x_max = df['calories_consumed'].max()
+    X_plot = np.linspace(x_min, x_max, 100).reshape(-1, 1)
     y_plot = model.predict(X_plot)
 
-    # Add the regression line to the plot
+    # Calculate the intersection points where y = -1 and y = 1
+    x_at_minus_1 = ([-1 - model.intercept_[0]] / model.coef_[0][0])[0]
+    x_at_plus_1 = ([1 - model.intercept_[0]] / model.coef_[0][0])[0]
+
+    # Update X_plot to ensure it includes points at x = x_at_minus_1 and x = x_at_plus_1
+    X_plot_extended = np.linspace(min(x_min, x_at_minus_1), max(x_max, x_at_plus_1), 100).reshape(-1, 1)
+    y_plot_extended = model.predict(X_plot_extended)
+
+    # Add the extended regression line to the plot
     fig.add_trace(
         go.Scatter(
-            x=X_plot.flatten(),
-            y=y_plot.flatten(),
+            x=X_plot_extended.flatten(),
+            y=y_plot_extended.flatten(),
             mode='lines',
             name='Regression Line',
             line=dict(color='red')
@@ -287,7 +297,7 @@ def predict_target_reach(df, target_weight):
     Predict the date when the target weight will be reached using linear regression.
 
     Args:
-        df (Pd.DataFrame): DataFrame containing weight loss data.
+        df (pd.DataFrame): DataFrame containing weight loss data.
         target_weight (float): User's target weight in kilograms.
 
     Returns:
