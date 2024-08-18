@@ -4,13 +4,14 @@ import pandas as pd
 from st_aggrid import AgGrid, GridOptionsBuilder
 import datetime
 import plotly.express as px
+import plotly.graph_objects as go
 from sklearn.linear_model import LinearRegression
 import numpy as np
 
 # Constants
 MIN_REQUIRED_POINTS = 5  # Minimum data points required for linear regression to make predictions
 CALORIES_PER_KG = 7000  # Caloric equivalent of 1 kg of weight loss
-VERSION = "1.0.19"  # Current version of the application
+VERSION = "1.1.1"  # Current version of the application
 
 def connect_to_db():
     """
@@ -92,6 +93,72 @@ def get_weightracker_data(height_m, target_weight):
             return pd.DataFrame()  # Return empty DataFrame in case of an error
         finally:
             conn.close()
+
+def calculate_rolling_average(df):
+    """
+    Calculate a 3-day rolling average for weight_delta and calorie_delta.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing weight and calorie data.
+
+    Returns:
+        df_rolling_avg (pd.DataFrame): DataFrame with the 3-day rolling average of weight_delta and calorie_delta.
+    """
+    df_rolling_avg = df[['weight_delta', 'calorie_delta']].rolling(window=3).mean()
+    df_rolling_avg = df_rolling_avg.dropna()  # Drop rows with NaN values resulting from the rolling average calculation
+    return df_rolling_avg
+
+def calculate_linear_regression_rolling_avg(df_rolling_avg):
+    """
+    Fit a linear regression model on the 3-day rolling average data.
+
+    Args:
+        df_rolling_avg (pd.DataFrame): DataFrame containing the 3-day rolling average of weight and calorie data.
+
+    Returns:
+        model (sklearn.linear_model.LinearRegression): Fitted linear regression model.
+    """
+    X = df_rolling_avg['weight_delta'].values.reshape(-1, 1)
+    y = df_rolling_avg['calorie_delta'].values.reshape(-1, 1)
+    
+    model = LinearRegression()
+    model.fit(X, y)
+    
+    return model
+
+def plot_weight_vs_calorie_scatter_with_regression(df, model):
+    """
+    Create a scatter plot of weight delta versus calorie delta with the linear regression line.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing weight and calorie data.
+        model (sklearn.linear_model.LinearRegression): Fitted linear regression model.
+
+    Returns:
+        fig (plotly.graph_objs._figure.Figure): Plotly figure object with the scatter plot and regression line.
+    """
+    # Create the scatter plot
+    fig = px.scatter(df, x='weight_delta', y='calorie_delta', 
+                     title='Weight Delta vs Calorie Saved (3-Day Rolling Average)',
+                     labels={'weight_delta': 'Delta Weight (kg)', 'calorie_delta': 'Calories Saved'})
+
+    # Generate regression line points
+    X_plot = np.linspace(df['weight_delta'].min(), df['weight_delta'].max(), 100).reshape(-1, 1)
+    y_plot = model.predict(X_plot)
+
+    # Add the regression line to the plot
+    fig.add_trace(
+        go.Scatter(
+            x=X_plot.flatten(),
+            y=y_plot.flatten(),
+            mode='lines',
+            name='Regression Line',
+            line=dict(color='red')
+        )
+    )
+    
+    fig.update_layout(xaxis_title='Delta Weight (kg)', yaxis_title='Calories Saved')
+    return fig
 
 def plot_weight_over_time(df, target_weight):
     """
@@ -466,6 +533,34 @@ def display_metrics(df, target_weight):
     with col4:
         st.metric("Calories to Go", f"{calories_to_go:.0f}", delta=f"{avg_calories_to_go_this_week:.0f}")
 
+def display_prediction_tab_with_rolling_avg(df, target_weight):
+    """
+    Display the prediction tab, including a scatter plot and regression line based on 3-day rolling average data.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing weight and calorie data.
+        target_weight (float): User's target weight in kilograms.
+    """
+    # Calculate the rolling average
+    df_rolling_avg = calculate_rolling_average(df)
+
+    if not df_rolling_avg.empty:
+        # Fit the linear regression model on the rolling average data
+        model = calculate_linear_regression_rolling_avg(df_rolling_avg)
+        
+        # Create and display the scatter plot with the regression line
+        scatter_plot_with_regression = plot_weight_vs_calorie_scatter_with_regression(df_rolling_avg, model)
+        st.plotly_chart(scatter_plot_with_regression, use_container_width=True)
+
+        # Display the predicted target date using the original prediction function
+        predicted_date, _ = predict_target_reach(df, target_weight)
+        if predicted_date:
+            st.write(f"**Predicted date to reach target weight:** {predicted_date.date()}")
+        else:
+            st.write("Prediction model could not be created.")
+    else:
+        st.write("No sufficient data to perform rolling average calculation.")
+
 def display_tabs(df, target_weight, height_m):
     """
     Display tabs for analysis, data, and predictions.
@@ -500,7 +595,7 @@ def display_tabs(df, target_weight, height_m):
                 st.plotly_chart(plot_bmi_over_time(df, height_m, target_weight), use_container_width=True)
 
             st.plotly_chart(plot_kgs_saved(df), use_container_width=True)
-            st.plotly_chart(plot_weight_vs_calorie_scatter(df), use_container_width=True)  # Added scatter plot
+            st.plotly_chart(plot_weight_vs_calorie_scatter(df), use_container_width=True)  # Original scatter plot
             
             # Calculate and display the correlation between weight delta and calorie delta
             correlation = calculate_correlation(df)
@@ -523,28 +618,7 @@ def display_tabs(df, target_weight, height_m):
     with tab3:
         st.header("Predictions")
         if not df.empty:
-            # Perform weight prediction and display the results
-            predicted_date, model = predict_target_reach(df, target_weight)
-            if predicted_date and model:
-                st.write(f"**Predicted date to reach target weight:** {predicted_date.date()}")
-                prediction_plot = plot_prediction(df, model, target_weight)
-                if prediction_plot:
-                    st.plotly_chart(prediction_plot, use_container_width=True)
-                else:
-                    st.write("Prediction plot could not be created.")
-            else:
-                st.write("Prediction model could not be created.")
-            
-            # Calculate and display the calorie burn rate and maintenance calories
-            calorie_burn_rate, maintenance_calories = calculate_calorie_burn_rate_and_maintenance(df)
-            if calorie_burn_rate is not None and maintenance_calories is not None:
-                st.subheader(f"Calorie Burn Rate: {calorie_burn_rate:.6f} kg/cal")
-                st.subheader(f"Daily Calories to Maintain Weight: {maintenance_calories:.0f} cal")
-
-            # Calculate maintenance calories using the ratio method
-            maintenance_calories_ratio = calculate_calorie_maintenance_using_ratios(df)
-            if maintenance_calories_ratio is not None:
-                st.subheader(f"Daily Calories to Maintain Weight (Ratio Method): {maintenance_calories_ratio:.0f} cal")
+            display_prediction_tab_with_rolling_avg(df, target_weight)
         else:
             st.write("No data available for predictions.")
 
