@@ -11,7 +11,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5  # Minimum data points required for linear regression to make predictions
 CALORIES_PER_KG = 7000  # Caloric equivalent of 1 kg of weight loss
-VERSION = "1.1.3"  # Current version of the application
+VERSION = "1.1.4"  # Current version of the application
 
 def connect_to_db():
     """
@@ -96,16 +96,16 @@ def get_weightracker_data(height_m, target_weight):
 
 def calculate_rolling_average(df, window_size):
     """
-    Calculate a rolling average for weight_delta and calorie_delta based on the given window size.
+    Calculate a rolling average for weight_delta and calories_consumed based on the given window size.
 
     Args:
         df (pd.DataFrame): DataFrame containing weight and calorie data.
         window_size (int): Number of days to calculate the rolling average over.
 
     Returns:
-        df_rolling_avg (pd.DataFrame): DataFrame with the rolling average of weight_delta and calorie_delta.
+        df_rolling_avg (pd.DataFrame): DataFrame with the rolling average of weight_delta and calories_consumed.
     """
-    df_rolling_avg = df[['weight_delta', 'calorie_delta']].rolling(window=window_size).mean()
+    df_rolling_avg = df[['weight_delta', 'calories_consumed']].rolling(window=window_size).mean()
     df_rolling_avg = df_rolling_avg.dropna()  # Drop rows with NaN values resulting from the rolling average calculation
     return df_rolling_avg
 
@@ -119,8 +119,8 @@ def calculate_linear_regression_rolling_avg(df_rolling_avg):
     Returns:
         model (sklearn.linear_model.LinearRegression): Fitted linear regression model.
     """
-    X = df_rolling_avg['weight_delta'].values.reshape(-1, 1)
-    y = df_rolling_avg['calorie_delta'].values.reshape(-1, 1)
+    X = df_rolling_avg['calories_consumed'].values.reshape(-1, 1)
+    y = df_rolling_avg['weight_delta'].values.reshape(-1, 1)
     
     model = LinearRegression()
     model.fit(X, y)
@@ -129,7 +129,7 @@ def calculate_linear_regression_rolling_avg(df_rolling_avg):
 
 def plot_weight_vs_calorie_scatter_with_regression(df, model):
     """
-    Create a scatter plot of weight delta versus calorie delta with the linear regression line.
+    Create a scatter plot of weight delta versus calories consumed with the linear regression line.
 
     Args:
         df (pd.DataFrame): DataFrame containing weight and calorie data.
@@ -139,12 +139,12 @@ def plot_weight_vs_calorie_scatter_with_regression(df, model):
         fig (plotly.graph_objs._figure.Figure): Plotly figure object with the scatter plot and regression line.
     """
     # Create the scatter plot
-    fig = px.scatter(df, x='weight_delta', y='calorie_delta', 
-                     title=f'Weight Delta vs Calorie Saved (Rolling Average)',
-                     labels={'weight_delta': 'Delta Weight (kg)', 'calorie_delta': 'Calories Saved'})
+    fig = px.scatter(df, x='calories_consumed', y='weight_delta', 
+                     title=f'Weight Delta vs Calories Consumed (Rolling Average)',
+                     labels={'calories_consumed': 'Calories Consumed', 'weight_delta': 'Delta Weight (kg)'})
 
     # Generate regression line points
-    X_plot = np.linspace(df['weight_delta'].min(), df['weight_delta'].max(), 100).reshape(-1, 1)
+    X_plot = np.linspace(df['calories_consumed'].min(), df['calories_consumed'].max(), 100).reshape(-1, 1)
     y_plot = model.predict(X_plot)
 
     # Add the regression line to the plot
@@ -158,7 +158,7 @@ def plot_weight_vs_calorie_scatter_with_regression(df, model):
         )
     )
     
-    fig.update_layout(xaxis_title='Delta Weight (kg)', yaxis_title='Calories Saved')
+    fig.update_layout(xaxis_title='Calories Consumed', yaxis_title='Delta Weight (kg)')
     return fig
 
 def plot_weight_over_time(df, target_weight):
@@ -604,7 +604,7 @@ def display_tabs(df, target_weight, height_m):
             # Display the full dataset in an interactive grid
             gb = GridOptionsBuilder.from_dataframe(df)
             gb.configure_pagination(paginationAutoPageSize=True)
-            gb.configure_side_bar()
+            gb.configure side bar()
             grid_options = gb.build()
             AgGrid(df, gridOptions=grid_options, height=400, width='100%')
         else:
