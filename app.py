@@ -11,7 +11,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5  # Minimum data points required for linear regression to make predictions
 CALORIES_PER_KG = 7000  # Caloric equivalent of 1 kg of weight loss
-VERSION = "1.1.5"  # Current version of the application
+VERSION = "1.1.6"  # Current version of the application
 
 def connect_to_db():
     """
@@ -235,7 +235,7 @@ def plot_kgs_saved(df):
     Create a line plot comparing theoretical versus actual kilograms saved over time.
 
     Args:
-        df (Pd.DataFrame): DataFrame containing weight loss data.
+        df (pd.DataFrame): DataFrame containing weight loss data.
 
     Returns:
         fig (plotly.graph_objs._figure.Figure): Plotly figure object with the theoretical vs actual kgs saved plot.
@@ -283,7 +283,7 @@ def predict_target_reach(df, target_weight):
     Predict the date when the target weight will be reached using linear regression.
 
     Args:
-        df (pd.DataFrame): DataFrame containing weight loss data.
+        df (Pd.DataFrame): DataFrame containing weight loss data.
         target_weight (float): User's target weight in kilograms.
 
     Returns:
@@ -359,8 +359,8 @@ def calculate_calorie_burn_rate_and_maintenance(df):
     model.fit(X, y)
 
     # Calculate the slope (calorie_burn_rate) and intercept of the regression line
-    calorie_burn_rate = model.coef()[0][0]
-    intercept = model.intercept()[0]
+    calorie_burn_rate = model.coef_[0][0]  # Use .coef_ with an underscore
+    intercept = model.intercept_[0]  # Use .intercept_ with an underscore
 
     # Ensure that the slope is negative, indicating that a calorie surplus leads to weight gain
     if calorie_burn_rate >= 0:
