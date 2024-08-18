@@ -11,7 +11,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5  # Minimum data points required for linear regression to make predictions
 CALORIES_PER_KG = 7000  # Caloric equivalent of 1 kg of weight loss
-VERSION = "1.1.2"  # Current version of the application
+VERSION = "1.1.3"  # Current version of the application
 
 def connect_to_db():
     """
@@ -94,26 +94,27 @@ def get_weightracker_data(height_m, target_weight):
         finally:
             conn.close()
 
-def calculate_rolling_average(df):
+def calculate_rolling_average(df, window_size):
     """
-    Calculate a 3-day rolling average for weight_delta and calorie_delta.
+    Calculate a rolling average for weight_delta and calorie_delta based on the given window size.
 
     Args:
         df (pd.DataFrame): DataFrame containing weight and calorie data.
+        window_size (int): Number of days to calculate the rolling average over.
 
     Returns:
-        df_rolling_avg (pd.DataFrame): DataFrame with the 3-day rolling average of weight_delta and calorie_delta.
+        df_rolling_avg (pd.DataFrame): DataFrame with the rolling average of weight_delta and calorie_delta.
     """
-    df_rolling_avg = df[['weight_delta', 'calorie_delta']].rolling(window=3).mean()
+    df_rolling_avg = df[['weight_delta', 'calorie_delta']].rolling(window=window_size).mean()
     df_rolling_avg = df_rolling_avg.dropna()  # Drop rows with NaN values resulting from the rolling average calculation
     return df_rolling_avg
 
 def calculate_linear_regression_rolling_avg(df_rolling_avg):
     """
-    Fit a linear regression model on the 3-day rolling average data.
+    Fit a linear regression model on the rolling average data.
 
     Args:
-        df_rolling_avg (pd.DataFrame): DataFrame containing the 3-day rolling average of weight and calorie data.
+        df_rolling_avg (pd.DataFrame): DataFrame containing the rolling average of weight and calorie data.
 
     Returns:
         model (sklearn.linear_model.LinearRegression): Fitted linear regression model.
@@ -139,7 +140,7 @@ def plot_weight_vs_calorie_scatter_with_regression(df, model):
     """
     # Create the scatter plot
     fig = px.scatter(df, x='weight_delta', y='calorie_delta', 
-                     title='Weight Delta vs Calorie Saved (3-Day Rolling Average)',
+                     title=f'Weight Delta vs Calorie Saved (Rolling Average)',
                      labels={'weight_delta': 'Delta Weight (kg)', 'calorie_delta': 'Calories Saved'})
 
     # Generate regression line points
@@ -535,14 +536,17 @@ def display_metrics(df, target_weight):
 
 def display_prediction_tab_with_rolling_avg(df, target_weight):
     """
-    Display the prediction tab, including a scatter plot and regression line based on 3-day rolling average data.
+    Display the prediction tab, including a scatter plot and regression line based on rolling average data.
 
     Args:
         df (pd.DataFrame): DataFrame containing weight and calorie data.
         target_weight (float): User's target weight in kilograms.
     """
+    # Add a slider to allow the user to select the window size for the rolling average
+    window_size = st.slider("Select number of days for rolling average", min_value=2, max_value=30, value=3, step=1)
+
     # Calculate the rolling average
-    df_rolling_avg = calculate_rolling_average(df)
+    df_rolling_avg = calculate_rolling_average(df, window_size)
 
     if not df_rolling_avg.empty:
         # Fit the linear regression model on the rolling average data
