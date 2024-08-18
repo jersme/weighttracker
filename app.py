@@ -11,7 +11,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5  # Minimum data points required for linear regression to make predictions
 CALORIES_PER_KG = 7000  # Caloric equivalent of 1 kg of weight loss
-VERSION = "1.1.7"  # Current version of the application
+VERSION = "1.1.10"  # Current version of the application
 
 def connect_to_db():
     """
