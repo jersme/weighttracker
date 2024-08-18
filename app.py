@@ -11,7 +11,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5  # Minimum data points required for linear regression to make predictions
 CALORIES_PER_KG = 7000  # Caloric equivalent of 1 kg of weight loss
-VERSION = "1.1.1"  # Current version of the application
+VERSION = "1.1.2"  # Current version of the application
 
 def connect_to_db():
     """
@@ -552,15 +552,6 @@ def display_prediction_tab_with_rolling_avg(df, target_weight):
         scatter_plot_with_regression = plot_weight_vs_calorie_scatter_with_regression(df_rolling_avg, model)
         st.plotly_chart(scatter_plot_with_regression, use_container_width=True)
 
-        # Display the predicted target date using the original prediction function
-        predicted_date, _ = predict_target_reach(df, target_weight)
-        if predicted_date:
-            st.write(f"**Predicted date to reach target weight:** {predicted_date.date()}")
-        else:
-            st.write("Prediction model could not be created.")
-    else:
-        st.write("No sufficient data to perform rolling average calculation.")
-
 def display_tabs(df, target_weight, height_m):
     """
     Display tabs for analysis, data, and predictions.
@@ -618,6 +609,30 @@ def display_tabs(df, target_weight, height_m):
     with tab3:
         st.header("Predictions")
         if not df.empty:
+            # Perform weight prediction and display the results
+            predicted_date, model = predict_target_reach(df, target_weight)
+            if predicted_date and model:
+                st.write(f"**Predicted date to reach target weight:** {predicted_date.date()}")
+                prediction_plot = plot_prediction(df, model, target_weight)
+                if prediction_plot:
+                    st.plotly_chart(prediction_plot, use_container_width=True)
+                else:
+                    st.write("Prediction plot could not be created.")
+            else:
+                st.write("Prediction model could not be created.")
+            
+            # Calculate and display the calorie burn rate and maintenance calories
+            calorie_burn_rate, maintenance_calories = calculate_calorie_burn_rate_and_maintenance(df)
+            if calorie_burn_rate is not None and maintenance_calories is not None:
+                st.subheader(f"Calorie Burn Rate: {calorie_burn_rate:.6f} kg/cal")
+                st.subheader(f"Daily Calories to Maintain Weight: {maintenance_calories:.0f} cal")
+
+            # Calculate maintenance calories using the ratio method
+            maintenance_calories_ratio = calculate_calorie_maintenance_using_ratios(df)
+            if maintenance_calories_ratio is not None:
+                st.subheader(f"Daily Calories to Maintain Weight (Ratio Method): {maintenance_calories_ratio:.0f} cal")
+            
+            # New rolling average-based scatter plot with regression line
             display_prediction_tab_with_rolling_avg(df, target_weight)
         else:
             st.write("No data available for predictions.")
