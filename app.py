@@ -11,7 +11,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5  # Minimum data points required for linear regression to make predictions
 CALORIES_PER_KG = 7000  # Caloric equivalent of 1 kg of weight loss
-VERSION = "1.1.10"  # Current version of the application
+VERSION = "1.1.11"  # Current version of the application
 
 def connect_to_db():
     """
@@ -652,8 +652,60 @@ def display_tabs(df, target_weight, height_m):
             
             # New rolling average-based scatter plot with regression line
             display_prediction_tab_with_rolling_avg(df, target_weight)
+            
+            # Add a new section for personalized maintenance calories calculation
+            st.subheader("Personalized Maintenance Calories Estimation")
+            if not df.empty:
+                personal_maintenance_calories = calculate_personal_maintenance_calories(df)
+                if personal_maintenance_calories is not None:
+                    st.write(f"**Estimated Daily Calories to Maintain Weight (Personalized):** {personal_maintenance_calories:.0f} cal")
+                else:
+                    st.write("Unable to calculate personalized maintenance calories.")
         else:
             st.write("No data available for predictions.")
+
+def calculate_personal_maintenance_calories(df):
+    """
+    Calculate personalized daily maintenance calories using a regression model.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing weight and calorie data.
+
+    Returns:
+        maintenance_calories (float): Estimated daily calories needed to maintain weight.
+    """
+    if df.empty or df['weight_delta'].isnull().all() or df['calorie_delta'].isnull().all():
+        st.error("Insufficient data to calculate personalized maintenance calories.")
+        return None
+
+    # Drop rows with NaN values in weight_delta or calorie_delta
+    df = df.dropna(subset=['weight_delta', 'calorie_delta'])
+
+    # Prepare the data for regression: calorie_delta vs. weight_delta
+    X = df['calorie_delta'].values.reshape(-1, 1)
+    y = df['weight_delta'].values.reshape(-1, 1)
+
+    # Fit the linear regression model
+    model = LinearRegression()
+    model.fit(X, y)
+
+    # Calculate the intercept and slope of the regression line
+    intercept = model.intercept_[0]
+    slope = model.coef_[0][0]
+
+    # Ensure that the slope is negative, indicating that a calorie surplus leads to weight gain
+    if slope >= 0:
+        st.error("Unexpected result: the regression suggests a positive or zero calorie burn rate, which is incorrect. Please check your data.")
+        return None
+
+    # Calculate the calorie delta needed to maintain weight (weight_delta = 0)
+    calorie_delta_to_maintain_weight = -intercept / slope
+
+    # Calculate the daily calories needed to maintain weight
+    avg_calories_burned = df['calories_burned'].mean()
+    maintenance_calories = avg_calories_burned + calorie_delta_to_maintain_weight
+
+    return maintenance_calories
 
 def main():
     """
