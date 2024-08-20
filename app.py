@@ -11,7 +11,7 @@ import numpy as np
 # Constants
 MIN_REQUIRED_POINTS = 5  # Minimum data points required for linear regression to make predictions
 CALORIES_PER_KG = 7000  # Caloric equivalent of 1 kg of weight loss
-VERSION = "1.1.11"  # Current version of the application
+VERSION = "1.1.12"  # Current version of the application
 
 def connect_to_db():
     """
@@ -93,6 +93,68 @@ def get_weightracker_data(height_m, target_weight):
             return pd.DataFrame()  # Return empty DataFrame in case of an error
         finally:
             conn.close()
+
+def calculate_rolling_delta(df, column_name, window_size=7):
+    """
+    Calculate the delta between the rolling average of the last 7 days and the 7 days before that.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing the relevant data.
+        column_name (str): The column for which to calculate the rolling delta.
+        window_size (int): The size of the rolling window (default is 7).
+
+    Returns:
+        delta (float): The difference between the last 7 days rolling average and the 7 days before that.
+    """
+    # Calculate the rolling average over the window size
+    df[f'{column_name}_rolling_avg'] = df[column_name].rolling(window=window_size).mean()
+
+    # Calculate the delta between the last 7 days and the 7 days before that
+    last_7_days_avg = df[f'{column_name}_rolling_avg'].iloc[-window_size:].mean()
+    previous_7_days_avg = df[f'{column_name}_rolling_avg'].iloc[-2*window_size:-window_size].mean()
+
+    delta = last_7_days_avg - previous_7_days_avg
+    return delta
+
+def display_metrics(df, target_weight):
+    """
+    Display key metrics based on the weight tracker data.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing weight tracker data.
+        target_weight (float): User's target weight in kilograms.
+    """
+    # Calculate metrics based on the current data
+    initial_weight = df['weight'].iloc[0]
+    kgs_lost_since_start = df['actual_kgs_saved'].iloc[-1]
+    kgs_to_go = df['kgs_to_target'].iloc[-1]
+    calories_saved = df['cumulative_calories_saved'].iloc[-1]
+    calories_to_go = df['calories_to_save'].iloc[-1]
+
+    # Calculate the deltas using the rolling delta function
+    kgs_lost_delta = calculate_rolling_delta(df, 'actual_kgs_saved')
+    kgs_to_go_delta = calculate_rolling_delta(df, 'kgs_to_target')
+    calories_saved_delta = calculate_rolling_delta(df, 'cumulative_calories_saved')
+    calories_to_go_delta = calculate_rolling_delta(df, 'calories_to_save')
+
+    # Calculate the total weight to lose and progress percentage
+    total_weight_to_lose = initial_weight - target_weight
+    progress_percentage = (kgs_lost_since_start / total_weight_to_lose) * 100
+
+    # Display the progress bar in the sidebar
+    st.sidebar.write(f"**Progress**: {progress_percentage:.2f}%")
+    st.sidebar.progress(progress_percentage / 100)
+
+    # Display the metrics in columns
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Kg's Lost Since Start", f"{kgs_lost_since_start:.2f} kg", delta=f"{kgs_lost_delta:.2f} kg")
+    with col2:
+        st.metric("Kg's to Go", f"{kgs_to_go:.2f} kg", delta=f"{kgs_to_go_delta:.2f} kg")
+    with col3:
+        st.metric("Calories Saved", f"{calories_saved:.0f}", delta=f"{calories_saved_delta:.0f}")
+    with col4:
+        st.metric("Calories to Go", f"{calories_to_go:.0f}", delta=f"{calories_to_go_delta:.0f}")
 
 def calculate_rolling_average(df, window_size):
     """
@@ -204,7 +266,7 @@ def plot_calorie_delta_over_time(df):
     Create a bar plot of daily calorie delta over time.
 
     Args:
-        df (pd.DataFrame): DataFrame containing calorie data.
+        df (Pd.DataFrame): DataFrame containing calorie data.
 
     Returns:
         fig (plotly.graph_objs._figure.Figure): Plotly figure object with the calorie delta over time plot.
@@ -503,51 +565,6 @@ def plot_prediction(df, model, target_weight):
 
     return fig
 
-def display_metrics(df, target_weight):
-    """
-    Display key metrics based on the weight tracker data.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing weight tracker data.
-        target_weight (float): User's target weight in kilograms.
-    """
-    # Calculate metrics based on the current data
-    initial_weight = df['weight'].iloc[0]
-    kgs_lost_since_start = df['actual_kgs_saved'].iloc[-1]
-    kgs_to_go = df['kgs_to_target'].iloc[-1]
-    calories_saved = df['cumulative_calories_saved'].iloc[-1]
-    calories_to_go = df['calories_to_save'].iloc[-1]
-
-    # Calculate the total weight to lose and progress percentage
-    total_weight_to_lose = initial_weight - target_weight
-    progress_percentage = (kgs_lost_since_start / total_weight_to_lose) * 100
-
-    # Display the progress bar in the sidebar
-    st.sidebar.write(f"**Progress**: {progress_percentage:.2f}%")
-    st.sidebar.progress(progress_percentage / 100)
-
-    # Filter for the current week's data
-    today = datetime.date.today()
-    start_of_week = today - datetime.timedelta(days=today.weekday())
-    current_week_data = df[df['date'].dt.date >= start_of_week]
-
-    # Calculate average values for the current week
-    avg_kgs_lost_this_week = current_week_data['actual_kgs_saved'].mean() if not current_week_data.empty else 0
-    avg_kgs_to_go_this_week = current_week_data['kgs_to_target'].mean() if not current_week_data.empty else 0
-    avg_calories_saved_this_week = current_week_data['cumulative_calories_saved'].mean() if not current_week_data.empty else 0
-    avg_calories_to_go_this_week = current_week_data['calories_to_save'].mean() if not current_week_data.empty else 0
-
-    # Display the metrics in columns
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Kg's Lost Since Start", f"{kgs_lost_since_start:.2f} kg", delta=f"{avg_kgs_lost_this_week:.2f} kg")
-    with col2:
-        st.metric("Kg's to Go", f"{kgs_to_go:.2f} kg", delta=f"{avg_kgs_to_go_this_week:.2f} kg")
-    with col3:
-        st.metric("Calories Saved", f"{calories_saved:.0f}", delta=f"{avg_calories_saved_this_week:.0f}")
-    with col4:
-        st.metric("Calories to Go", f"{calories_to_go:.0f}", delta=f"{avg_calories_to_go_this_week:.0f}")
-
 def display_prediction_tab_with_rolling_avg(df, target_weight):
     """
     Display the prediction tab, including a scatter plot and regression line based on rolling average data.
@@ -575,7 +592,7 @@ def display_tabs(df, target_weight, height_m):
     Display tabs for analysis, data, and predictions.
 
     Args:
-        df (pd.DataFrame): DataFrame containing weight tracker data.
+        df (Pd.DataFrame): DataFrame containing weight tracker data.
         target_weight (float): User's target weight in kilograms.
         height_m (float): User's height in meters.
     """
