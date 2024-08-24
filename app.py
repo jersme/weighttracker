@@ -194,7 +194,7 @@ def plot_weight_vs_calorie_scatter_with_regression(df, model):
     Create a scatter plot of weight delta versus calories consumed with the linear regression line.
 
     Args:
-        df (Pd.DataFrame): DataFrame containing weight and calorie data.
+        df (pd.DataFrame): DataFrame containing weight and calorie data.
         model (sklearn.linear_model.LinearRegression): Fitted linear regression model.
 
     Returns:
@@ -346,7 +346,7 @@ def calculate_correlation(df):
     Calculate the correlation between daily weight change and calorie delta.
 
     Args:
-        df (pd.DataFrame): DataFrame containing weight and calorie data.
+        df (Pd.DataFrame): DataFrame containing weight and calorie data.
 
     Returns:
         correlation (float): Correlation coefficient between weight delta and calorie delta.
@@ -359,7 +359,7 @@ def predict_target_reach(df, target_weight):
     Predict the date when the target weight will be reached using linear regression.
 
     Args:
-        df (pd.DataFrame): DataFrame containing weight loss data.
+        df (Pd.DataFrame): DataFrame containing weight loss data.
         target_weight (float): User's target weight in kilograms.
 
     Returns:
@@ -491,7 +491,7 @@ def plot_prediction(df, model, target_weight):
     Plot the prediction line along with actual kilograms lost over time.
 
     Args:
-        df (Pd.DataFrame): DataFrame containing weight loss data.
+        df (pd.DataFrame): DataFrame containing weight loss data.
         model (sklearn.linear_model.LinearRegression): Fitted linear regression model.
         target_weight (float): User's target weight in kilograms.
 
@@ -637,6 +637,19 @@ def display_tabs(df, target_weight, height_m):
             maintenance_calories_ratio = calculate_calorie_maintenance_using_ratios(df)
             if maintenance_calories_ratio is not None:
                 st.subheader(f"Daily Calories to Maintain Weight (Ratio Method): {maintenance_calories_ratio:.0f} cal")
+
+            window_size = st.slider("Select number of days for rolling average", min_value=2, max_value=30, value=7, step=1)
+
+            st.subheader("Personalized Calories per Kg (Regression-Based with Rolling Average)")
+            personal_calories_per_kg, model = calculate_personalized_calories_per_kg_regression_rolling(df, window_size)
+            if personal_calories_per_kg is not None:
+                st.metric("Personalized Calories per Kg", f"{personal_calories_per_kg:.2f} cal/kg")
+                
+                df_rolling_avg = df[['weight_delta', 'calorie_delta']].rolling(window=window_size).mean().dropna()
+                regression_plot = plot_calories_per_kg_regression(df_rolling_avg, model)
+                st.plotly_chart(regression_plot, use_container_width=True)
+            else:
+                st.write("Unable to calculate personalized calories per kg.")
         else:
             st.write("No data available for predictions.")
 
