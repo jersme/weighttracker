@@ -208,6 +208,46 @@ def plot_calories_per_kg_regression(df_rolling_avg, model):
     fig.update_layout(xaxis_title='Calories Saved', yaxis_title='Delta Weight (kg)')
     return fig
 
+def display_metrics(df, target_weight):
+    """
+    Display key metrics based on the weight tracker data.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing weight tracker data.
+        target_weight (float): User's target weight in kilograms.
+    """
+    # Calculate metrics based on the current data
+    initial_weight = df['weight'].iloc[0]
+    kgs_lost_since_start = df['actual_kgs_saved'].iloc[-1]
+    kgs_to_go = df['kgs_to_target'].iloc[-1]
+    calories_saved = df['cumulative_calories_saved'].iloc[-1]
+    calories_to_go = df['calories_to_save'].iloc[-1]
+
+    # Calculate the deltas using the rolling delta function
+    kgs_lost_delta = calculate_rolling_delta(df, 'actual_kgs_saved')
+    kgs_to_go_delta = calculate_rolling_delta(df, 'kgs_to_target')
+    calories_saved_delta = calculate_rolling_delta(df, 'cumulative_calories_saved')
+    calories_to_go_delta = calculate_rolling_delta(df, 'calories_to_save')
+
+    # Calculate the total weight to lose and progress percentage
+    total_weight_to_lose = initial_weight - target_weight
+    progress_percentage = (kgs_lost_since_start / total_weight_to_lose) * 100
+
+    # Display the progress bar in the sidebar
+    st.sidebar.write(f"**Progress**: {progress_percentage:.2f}%")
+    st.sidebar.progress(progress_percentage / 100)
+
+    # Display the metrics in columns
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Kg's Lost Since Start", f"{kgs_lost_since_start:.2f} kg", delta=f"{kgs_lost_delta:.2f} kg")
+    with col2:
+        st.metric("Kg's to Go", f"{kgs_to_go:.2f} kg", delta=f"{kgs_to_go_delta:.2f} kg")
+    with col3:
+        st.metric("Calories Saved", f"{calories_saved:.0f}", delta=f"{calories_saved_delta:.0f}")
+    with col4:
+        st.metric("Calories to Go", f"{calories_to_go:.0f}", delta=f"{calories_to_go_delta:.0f}")
+
 def display_tabs(df, target_weight, height_m):
     """
     Display tabs for analysis, data, and predictions.
@@ -281,7 +321,6 @@ def display_tabs(df, target_weight, height_m):
             if maintenance_calories_ratio is not None:
                 st.subheader(f"Daily Calories to Maintain Weight (Ratio Method): {maintenance_calories_ratio:.0f} cal")
 
-            # Use the existing rolling average slider
             window_size = st.slider("Select number of days for rolling average", min_value=2, max_value=30, value=7, step=1)
 
             st.subheader("Personalized Calories per Kg (Regression-Based with Rolling Average)")
